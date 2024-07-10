@@ -1,29 +1,11 @@
-
-
 <?php
 include 'include/session.php';
-// Include your database connection and functions
-include 'include/connect.php'; // Assuming the code you provided is in this file
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
+include 'include/connect.php';
 
 
 if (!$connect) {
     die("Connection failed: " . mysqli_connect_error());
 }
-
-$sql = "SELECT id, email, first_name, last_name FROM users LIMIT 10";
-$result = $connect->query($sql);
-
-if ($result === false) {
-    die("Error executing query: " . $connect->error);
-}
-
-while ($row = $result->fetch_assoc()) {
-    echo "ID: " . $row["id"] . " - Name: " . $row["first_name"] . " " . $row["last_name"] . " - Email: " . $row["email"] . "<br>";
-}
-
 
 // Pagination settings
 $recordsPerPage = isset($_GET['per_page']) ? intval($_GET['per_page']) : 25;
@@ -61,21 +43,23 @@ $params[] = $recordsPerPage;
 $params[] = $offset;
 $types .= "ii";
 
+
 // Prepare and execute the query
 $stmt = $connect->prepare($sql);
 if ($stmt === false) {
     die("Error preparing statement: " . $connect->error);
 }
 
-if (!empty($params)) {
-    $stmt->bind_param($types, ...$params);
+if (!empty($types) && !empty($params)) {
+    if (!$stmt->bind_param($types, ...$params)) {
+        die("Error binding parameters: " . $stmt->error);
+    }
 }
-
-$stmt->execute();
 
 if (!$stmt->execute()) {
-  die("Error executing statement: " . $stmt->error);
+    die("Error executing statement: " . $stmt->error);
 }
+
 $result = $stmt->get_result();
 $users = $result->fetch_all(MYSQLI_ASSOC);
 
@@ -94,14 +78,22 @@ if (!empty($params)) {
     array_pop($params);
     array_pop($params);
     $countTypes = substr($types, 0, -2);
-    $countStmt->bind_param($countTypes, ...$params);
+    if (!empty($countTypes) && !empty($params)) {
+        if (!$countStmt->bind_param($countTypes, ...$params)) {
+            die("Error binding count parameters: " . $countStmt->error);
+        }
+    }
 }
 
-$countStmt->execute();
+if (!$countStmt->execute()) {
+    die("Error executing count statement: " . $countStmt->error);
+}
+
 $countResult = $countStmt->get_result();
 $totalRecords = $countResult->fetch_row()[0];
 $totalPages = ceil($totalRecords / $recordsPerPage);
 
+// Continue with your HTML output...
 ?>
 
 <!DOCTYPE html>
