@@ -18,8 +18,8 @@
     <div class="auth-right py-32 px-24 d-flex flex-column justify-content-center">
         <div class="max-w-464-px mx-auto w-100">
             <div>
-                <a href="index.php" class="mb-40 max-w-290-px">
-                    <img src="assets/images/logo.png" alt="">
+                <a href="dashboard.php" class="mb-40 max-w-290-px">
+                    <img src="assets/images/mos_logo.png" alt="">
                 </a>
                 <h4 class="mb-12">Sign Up to your Account</h4>
                 <p class="mb-32 text-secondary-light text-lg">Welcome back! please enter your detail</p>
@@ -79,7 +79,7 @@
                     </button>
                 </div>
                 <div class="mt-32 text-center text-sm">
-                    <p class="mb-0">Already have an account? <a href="sign-in.php" class="text-primary-600 fw-semibold">Sign In</a></p>
+                    <p class="mb-0">Already have an account? <a href="index.php" class="text-primary-600 fw-semibold">Sign In</a></p>
                 </div>
                 
             </form>

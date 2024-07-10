@@ -19,7 +19,7 @@
   <h6 class="fw-semibold mb-0">Dashboard</h6>
   <ul class="d-flex align-items-center gap-2">
     <li class="fw-medium">
-      <a href="index.php" class="d-flex align-items-center gap-1 hover-text-primary">
+      <a href="dashboard.php" class="d-flex align-items-center gap-1 hover-text-primary">
         <iconify-icon icon="solar:home-smile-angle-outline" class="icon text-lg"></iconify-icon>
         Dashboard
       </a>
@@ -536,7 +536,7 @@
                                         <div class="d-flex flex-column justify-content-between h-100">
                                             <div class="d-flex align-items-center justify-content-between flex-wrap">
                                                 <h6 class="text-white mb-0">Master Card</h6>
-                                                <img src="assets/images/card/card-logo.png" alt="">
+                                                <img src="assets/images/card/card-mos_logo.png" alt="">
                                             </div>
             
                                             <div>
@@ -563,7 +563,7 @@
                                         <div class="d-flex flex-column justify-content-between h-100">
                                             <div class="d-flex align-items-center justify-content-between flex-wrap">
                                                 <h6 class="text-white mb-0">Master Card</h6>
-                                                <img src="assets/images/card/card-logo.png" alt="">
+                                                <img src="assets/images/card/card-mos_logo.png" alt="">
                                             </div>
             
                                             <div>
@@ -590,7 +590,7 @@
                                         <div class="d-flex flex-column justify-content-between h-100">
                                             <div class="d-flex align-items-center justify-content-between flex-wrap">
                                                 <h6 class="text-white mb-0">Master Card</h6>
-                                                <img src="assets/images/card/card-logo.png" alt="">
+                                                <img src="assets/images/card/card-mos_logo.png" alt="">
                                             </div>
             
                                             <div>
@@ -756,16 +756,7 @@
     </div>
   </div>
 
-  <footer class="d-footer">
-  <div class="row align-items-center justify-content-between">
-    <div class="col-auto">
-      <p class="mb-0">© 2024 WowDash. All Rights Reserved.</p>
-    </div>
-    <div class="col-auto">
-      <p class="mb-0">Made by <span class="text-primary-600">wowtheme7</span></p>
-    </div>
-  </div>
-</footer>
+<?php include "include/footer.php" ?>
 </main>
 <?php include "include/script.php" ?>
 

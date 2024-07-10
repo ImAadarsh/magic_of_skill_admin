@@ -19,7 +19,7 @@
   <h6 class="fw-semibold mb-0">Invoice List</h6>
   <ul class="d-flex align-items-center gap-2">
     <li class="fw-medium">
-      <a href="index.php" class="d-flex align-items-center gap-1 hover-text-primary">
+      <a href="dashboard.php" class="d-flex align-items-center gap-1 hover-text-primary">
         <iconify-icon icon="solar:home-smile-angle-outline" class="icon text-lg"></iconify-icon>
         Dashboard
       </a>
@@ -50,7 +50,7 @@
                     <p class="mb-0 text-sm">Date Due: <span class="editable text-decoration-underline">29/08/2020</span> <span class="text-success-main"><iconify-icon icon="mage:edit"></iconify-icon></span></p>
                   </div>
                   <div class="col-sm-4">
-                    <img src="assets/images/logo.png" alt="image" class="mb-8">
+                    <img src="assets/images/mos_logo.png" alt="image" class="mb-8">
                     <p class="mb-1 text-sm">4517 Washington Ave. Manchester, Kentucky 39495</p>
                     <p class="mb-0 text-sm">random@gmail.com, +1 543 2198</p>
                   </div>
@@ -225,16 +225,7 @@
     
   </div>
 
-  <footer class="d-footer">
-  <div class="row align-items-center justify-content-between">
-    <div class="col-auto">
-      <p class="mb-0">© 2024 WowDash. All Rights Reserved.</p>
-    </div>
-    <div class="col-auto">
-      <p class="mb-0">Made by <span class="text-primary-600">wowtheme7</span></p>
-    </div>
-  </div>
-</footer>
+<?php include "include/footer.php" ?>
 </main>
 <?php include "include/script.php" ?>
 <script src="assets/js/invoice.js"></script>

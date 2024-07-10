@@ -1,3 +1,4 @@
+<?php include "include/connection.php"; ?>
 <!-- meta tags and other links -->
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
@@ -19,13 +20,14 @@
   <h6 class="fw-semibold mb-0">Dashboard</h6>
   <ul class="d-flex align-items-center gap-2">
     <li class="fw-medium">
-      <a href="index.php" class="d-flex align-items-center gap-1 hover-text-primary">
+      <a href="dashboard.php" class="d-flex align-items-center gap-1 hover-text-primary">
         <iconify-icon icon="solar:home-smile-angle-outline" class="icon text-lg"></iconify-icon>
         Dashboard
       </a>
     </li>
     <li>-</li>
-    <li class="fw-medium">eCommerce</li>
+    <li class="fw-medium">Hello <?php echo $name;?>!</li>
+
   </ul>
 </div>
     
@@ -36,7 +38,7 @@
                     <div class="col-xxl-6 pe-xxl-0">
                         <div class="card-body p-24">
                             <div class="d-flex align-items-center flex-wrap gap-2 justify-content-between">
-                                <h6 class="mb-2 fw-bold text-lg">Revenue Report</h6>
+                                <h6 class="mb-2 fw-bold text-lg">Revenue <?php echo $usertype;?></h6>
                                 <div class="">
                                 <select class="form-select form-select-sm w-auto bg-base border text-secondary-light">
                                     <option>Yearly</option>
@@ -763,17 +765,8 @@
     </div>
     
   </div>
+  <?php include "include/footer.php" ?>
 
-  <footer class="d-footer">
-  <div class="row align-items-center justify-content-between">
-    <div class="col-auto">
-      <p class="mb-0">© 2024 WowDash. All Rights Reserved.</p>
-    </div>
-    <div class="col-auto">
-      <p class="mb-0">Made by <span class="text-primary-600">wowtheme7</span></p>
-    </div>
-  </div>
-</footer>
 </main>
 <?php include "include/script.php" ?>
 

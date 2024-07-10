@@ -3,10 +3,10 @@
     <iconify-icon icon="radix-icons:cross-2"></iconify-icon>
   </button>
   <div>
-    <a href="index.php" class="sidebar-logo">
-      <img src="assets/images/logo.png" alt="site logo" class="light-logo">
-      <img src="assets/images/logo-light.png" alt="site logo" class="dark-logo">
-      <img src="assets/images/logo-icon.png" alt="site logo" class="logo-icon">
+    <a href="dashboard.php" class="sidebar-logo">
+      <img src="assets/images/mos_logo.png" alt="site logo" class="light-logo">
+      <img src="assets/images/mos_logo_light.png" alt="site logo" class="dark-logo">
+      <img src="assets/images/mos_icon.png" alt="site logo" class="logo-icon">
     </a>
   </div>
   <div class="sidebar-menu-area">
@@ -18,7 +18,7 @@
         </a>
         <ul class="sidebar-submenu">
           <li>
-            <a href="index.php"><i class="ri-circle-fill circle-icon text-primary-600 w-auto"></i> AI</a>
+            <a href="dashboard.php"><i class="ri-circle-fill circle-icon text-primary-600 w-auto"></i> AI</a>
           </li>
           <li>
             <a href="index-2.php"><i class="ri-circle-fill circle-icon text-warning-main w-auto"></i> CRM</a>
@@ -231,7 +231,7 @@
         </a>
         <ul class="sidebar-submenu">
           <li>
-            <a href="sign-in.php"><i class="ri-circle-fill circle-icon text-primary-600 w-auto"></i> Sign In</a>
+            <a href="index.php"><i class="ri-circle-fill circle-icon text-primary-600 w-auto"></i> Sign In</a>
           </li>
           <li>
             <a href="sign-up.php"><i class="ri-circle-fill circle-icon text-warning-main w-auto"></i> Sign Up</a>
