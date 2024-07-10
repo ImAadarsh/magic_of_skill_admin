@@ -72,6 +72,10 @@ if (!empty($params)) {
 }
 
 $stmt->execute();
+
+if (!$stmt->execute()) {
+  die("Error executing statement: " . $stmt->error);
+}
 $result = $stmt->get_result();
 $users = $result->fetch_all(MYSQLI_ASSOC);
 
