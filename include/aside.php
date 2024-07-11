@@ -253,6 +253,21 @@
           </li>
         </ul>
       </li>
+      <li class="dropdown">
+        <a href="javascript:void(0)">
+          <iconify-icon icon="flowbite:users-group-outline" class="menu-icon"></iconify-icon>
+          <span>Trainers</span> 
+        </a>
+        <ul class="sidebar-submenu">
+          <li>
+            <a href="trainers.php"><i class="ri-circle-fill circle-icon text-primary-600 w-auto"></i> View Trainers</a>
+          </li>
+          
+          <li>
+            <a href="add-trainer.php"><i class="ri-circle-fill circle-icon text-danger-main w-auto"></i> New Trainer</a>
+          </li>
+        </ul>
+      </li>
 
       <li class="sidebar-menu-group-title">Application</li>
 
