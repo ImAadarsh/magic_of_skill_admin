@@ -303,6 +303,21 @@
           </li>
         </ul>
       </li>
+      <li class="dropdown">
+        <a href="javascript:void(0)">
+          <iconify-icon icon="flowbite:users-group-outline" class="menu-icon"></iconify-icon>
+          <span>Payment Coupons</span> 
+        </a>
+        <ul class="sidebar-submenu">
+          <li>
+            <a href="add-coupon.php"><i class="ri-circle-fill circle-icon text-primary-600 w-auto"></i> Add Coupon</a>
+          </li>
+          
+          <li>
+            <a href="coupons.php"><i class="ri-circle-fill circle-icon text-danger-main w-auto"></i> View Coupons</a>
+          </li>
+        </ul>
+      </li>
 
       <li class="sidebar-menu-group-title">Application</li>
 
