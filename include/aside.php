@@ -268,6 +268,26 @@
           </li>
         </ul>
       </li>
+      <li class="dropdown">
+        <a href="javascript:void(0)">
+          <iconify-icon icon="flowbite:users-group-outline" class="menu-icon"></iconify-icon>
+          <span>Workshop</span> 
+        </a>
+        <ul class="sidebar-submenu">
+          <li>
+            <a href="workshops.php"><i class="ri-circle-fill circle-icon text-primary-600 w-auto"></i> View Workshops</a>
+          </li>
+          <li>
+            <a href="workshop-categories.php"><i class="ri-circle-fill circle-icon text-primary-600 w-auto"></i> View Categories</a>
+          </li>
+          <li>
+            <a href="add-workshop-category.php"><i class="ri-circle-fill circle-icon text-info-main w-auto"></i>New Category</a>
+          </li>
+          <li>
+            <a href="add-workshop.php"><i class="ri-circle-fill circle-icon text-danger-main w-auto"></i> New Workshop</a>
+          </li>
+        </ul>
+      </li>
 
       <li class="sidebar-menu-group-title">Application</li>
 
