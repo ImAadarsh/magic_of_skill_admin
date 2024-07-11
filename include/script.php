@@ -1,8 +1,9 @@
-<script src="assets/js/app.js"></script>
+<!-- <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> -->
+
   <!-- jQuery library js -->
   <script src="assets/js/lib/jquery-3.7.1.min.js"></script>
-  <script src="assets/js/lib/fullcalendar.min.js"></script>
-<script src="assets/js/lib/flatpickr.min.js"></script>
+  <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.14/index.global.min.js'></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <!-- Bootstrap js -->
   <script src="assets/js/lib/bootstrap.bundle.min.js"></script>
   <!-- Apex Chart js -->
@@ -21,6 +22,6 @@
   <!-- Slick Slider js -->
   <script src="assets/js/lib/slick.min.js"></script>
   <!-- main js -->
-
+  <script src="assets/js/app.js"></script>
 
   
