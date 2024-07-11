@@ -211,13 +211,10 @@
             <a href="users-list.php"><i class="ri-circle-fill circle-icon text-primary-600 w-auto"></i> Users List</a>
           </li>
           <li>
-            <a href="users-grid.php"><i class="ri-circle-fill circle-icon text-warning-main w-auto"></i> Users Grid</a>
+            <a href="add-user.php"><i class="ri-circle-fill circle-icon text-info-main w-auto"></i> Add Admin</a>
           </li>
           <li>
-            <a href="add-user.php"><i class="ri-circle-fill circle-icon text-info-main w-auto"></i> Add User</a>
-          </li>
-          <li>
-            <a href="view-profile.php"><i class="ri-circle-fill circle-icon text-danger-main w-auto"></i> View Profile</a>
+            <a href="view-profile.php"><i class="ri-circle-fill circle-icon text-danger-main w-auto"></i> Your Profile</a>
           </li>
         </ul>
       </li>

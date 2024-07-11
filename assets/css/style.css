@@ -365,6 +365,10 @@ body {
   overflow-x: hidden;
 }
 
+.small-text-popup {
+  font-size: 0.9rem !important;
+}
+
 body.overlay-active::after {
   width: 100%;
 }

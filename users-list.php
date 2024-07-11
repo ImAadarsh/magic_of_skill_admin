@@ -1,11 +1,12 @@
 <?php
+
 include 'include/session.php';
 include 'include/connect.php';
-
 
 if (!$connect) {
     die("Connection failed: " . mysqli_connect_error());
 }
+
 
 // Pagination settings
 $recordsPerPage = isset($_GET['per_page']) ? intval($_GET['per_page']) : 25;
@@ -13,19 +14,21 @@ $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
 $offset = ($page - 1) * $recordsPerPage;
 
 // Build the SQL query
-$sql = "SELECT id, email, first_name, last_name, school, city, country_code, mobile, user_type, created_at FROM users";
+$sql = "SELECT id, email, first_name, last_name, school, icon, city, country_code, mobile, user_type, created_at FROM users";
 
 // Apply filters
 $whereClause = [];
 $params = [];
 $types = "";
 
-if (isset($_GET['status']) && $_GET['status'] != '') {
+// User type filter
+if (isset($_GET['user_type']) && $_GET['user_type'] != '') {
     $whereClause[] = "user_type = ?";
-    $params[] = $_GET['status'];
+    $params[] = $_GET['user_type'];
     $types .= "s";
 }
 
+// Search filter
 if (isset($_GET['search']) && $_GET['search'] != '') {
     $searchTerm = '%' . $_GET['search'] . '%';
     $whereClause[] = "(email LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR school LIKE ? OR city LIKE ?)";
@@ -33,6 +36,67 @@ if (isset($_GET['search']) && $_GET['search'] != '') {
     $types .= "sssss";
 }
 
+// Date filter
+if (isset($_GET['joined']) && $_GET['joined'] != '') {
+    $today = date('Y-m-d');
+    switch ($_GET['joined']) {
+        case 'today':
+            $whereClause[] = "DATE(created_at) = ?";
+            $params[] = $today;
+            $types .= "s";
+            break;
+        case 'yesterday':
+            $yesterday = date('Y-m-d', strtotime('-1 day'));
+            $whereClause[] = "DATE(created_at) = ?";
+            $params[] = $yesterday;
+            $types .= "s";
+            break;
+        case 'this_week':
+            $weekStart = date('Y-m-d', strtotime('monday this week'));
+            $weekEnd = date('Y-m-d', strtotime('sunday this week'));
+            $whereClause[] = "DATE(created_at) BETWEEN ? AND ?";
+            $params[] = $weekStart;
+            $params[] = $weekEnd;
+            $types .= "ss";
+            break;
+        case 'this_month':
+            $monthStart = date('Y-m-01');
+            $monthEnd = date('Y-m-t');
+            $whereClause[] = "DATE(created_at) BETWEEN ? AND ?";
+            $params[] = $monthStart;
+            $params[] = $monthEnd;
+            $types .= "ss";
+            break;
+        case 'custom':
+            if (isset($_GET['start_date']) && isset($_GET['end_date'])) {
+                $startDate = $_GET['start_date'];
+                $endDate = $_GET['end_date'];
+                $whereClause[] = "DATE(created_at) BETWEEN ? AND ?";
+                $params[] = $startDate;
+                $params[] = $endDate;
+                $types .= "ss";
+            }
+            break;
+    }
+}
+
+// School filter
+if (isset($_GET['school']) && $_GET['school'] != '') {
+    $whereClause[] = "school LIKE ?";
+    $params[] = '%' . $_GET['school'] . '%';
+    $types .= "s";
+}
+
+// City filter
+if (isset($_GET['city']) && $_GET['city'] != '') {
+    $whereClause[] = "city LIKE ?";
+    $params[] = '%' . $_GET['city'] . '%';
+    $types .= "s";
+}
+
+
+
+// Apply where clause
 if (!empty($whereClause)) {
     $sql .= " WHERE " . implode(" AND ", $whereClause);
 }
@@ -42,7 +106,6 @@ $sql .= " LIMIT ? OFFSET ?";
 $params[] = $recordsPerPage;
 $params[] = $offset;
 $types .= "ii";
-
 
 // Prepare and execute the query
 $stmt = $connect->prepare($sql);
@@ -95,7 +158,6 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
 
 // Continue with your HTML output...
 ?>
-
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
@@ -103,6 +165,19 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Magic Of Skills DashBoard</title>
     <?php include "include/meta.php" ?>
+    <style>
+        @media (max-width: 767px) {
+            .card-header .d-flex {
+                flex-direction: column;
+            }
+            .card-header .d-flex > * {
+                margin-bottom: 10px;
+            }
+            .table-responsive {
+                overflow-x: auto;
+            }
+        }
+    </style>
 </head>
 <body>
     <?php include "include/aside.php" ?>
@@ -112,7 +187,7 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
     
         <div class="dashboard-main-body">
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-24">
-                <h6 class="fw-semibold mb-0">Users Grid</h6>
+                <h6 class="fw-semibold mb-0">Users Database</h6>
                 <ul class="d-flex align-items-center gap-2">
                     <li class="fw-medium">
                         <a href="dashboard.php" class="d-flex align-items-center gap-1 hover-text-primary">
@@ -121,37 +196,54 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
                         </a>
                     </li>
                     <li>-</li>
-                    <li class="fw-medium">Users Grid</li>
+                    <li class="fw-medium">MOS | Users </li>
                 </ul>
             </div>
 
             <div class="card h-100 p-0 radius-12">
                 <div class="card-header border-bottom bg-base py-16 px-24 d-flex align-items-center flex-wrap gap-3 justify-content-between">
                     <div class="d-flex align-items-center flex-wrap gap-3">
-                        <form method="GET" class="d-flex align-items-center gap-3">
-                            <span class="text-md fw-medium text-secondary-light mb-0">Show</span>
-                            <select name="per_page" class="form-select form-select-sm w-auto ps-12 py-6 radius-12 h-40-px" onchange="this.form.submit()">
-                                <option value="10" <?php echo $recordsPerPage == 10 ? 'selected' : ''; ?>>10</option>
-                                <option value="25" <?php echo $recordsPerPage == 25 ? 'selected' : ''; ?>>25</option>
-                                <option value="50" <?php echo $recordsPerPage == 50 ? 'selected' : ''; ?>>50</option>
-                                <option value="100" <?php echo $recordsPerPage == 100 ? 'selected' : ''; ?>>100</option>
-                            </select>
-                            <input type="text" class="bg-base h-40-px w-auto" name="search" placeholder="Search" value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>">
-                            <select name="status" class="form-select form-select-sm w-auto ps-12 py-6 radius-12 h-40-px" onchange="this.form.submit()">
-                                <option value="">All Status</option>
-                                <option value="admin" <?php echo isset($_GET['status']) && $_GET['status'] == 'admin' ? 'selected' : ''; ?>>Admin</option>
-                                <option value="user" <?php echo isset($_GET['status']) && $_GET['status'] == 'user' ? 'selected' : ''; ?>>User</option>
-                            </select>
-                            <button type="submit" class="btn btn-primary btn-sm">Apply Filters</button>
-                        </form>
+                        <button id="showFilters" class="btn btn-secondary d-md-none mb-3">Show Filters</button>
+                        <div id="filterContainer" class="d-none d-md-block">
+                            <form method="GET" class="d-flex align-items-center gap-3 flex-wrap">
+                                <span class="text-md fw-medium text-secondary-light mb-0">Show</span>
+                                <select name="per_page" class="form-select form-select-sm w-auto ps-12 py-6 radius-12 h-40-px" onchange="this.form.submit()">
+                                    <option value="10" <?php echo $recordsPerPage == 10 ? 'selected' : ''; ?>>10</option>
+                                    <option value="25" <?php echo $recordsPerPage == 25 ? 'selected' : ''; ?>>25</option>
+                                    <option value="50" <?php echo $recordsPerPage == 50 ? 'selected' : ''; ?>>50</option>
+                                    <option value="100" <?php echo $recordsPerPage == 100 ? 'selected' : ''; ?>>100</option>
+                                </select>
+                                <input type="text" class="bg-base h-40-px w-auto" name="search" placeholder="Search" value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>">
+                                <select name="user_type" class="form-select form-select-sm w-auto ps-12 py-6 radius-12 h-40-px" onchange="this.form.submit()">
+                                    <option value="">All User Types</option>
+                                    <option value="admin" <?php echo isset($_GET['user_type']) && $_GET['user_type'] == 'admin' ? 'selected' : ''; ?>>Admin</option>
+                                    <option value="user" <?php echo isset($_GET['user_type']) && $_GET['user_type'] == 'user' ? 'selected' : ''; ?>>User</option>
+                                </select>
+                                <select name="joined" class="form-select form-select-sm w-auto ps-12 py-6 radius-12 h-40-px" onchange="this.form.submit()">
+                                    <option value="">Joined</option>
+                                    <option value="today" <?php echo isset($_GET['joined']) && $_GET['joined'] == 'today' ? 'selected' : ''; ?>>Today</option>
+                                    <option value="yesterday" <?php echo isset($_GET['joined']) && $_GET['joined'] == 'yesterday' ? 'selected' : ''; ?>>Yesterday</option>
+                                    <option value="this_week" <?php echo isset($_GET['joined']) && $_GET['joined'] == 'this_week' ? 'selected' : ''; ?>>This Week</option>
+                                    <option value="this_month" <?php echo isset($_GET['joined']) && $_GET['joined'] == 'this_month' ? 'selected' : ''; ?>>This Month</option>
+                                    <option value="custom" <?php echo isset($_GET['joined']) && $_GET['joined'] == 'custom' ? 'selected' : ''; ?>>Custom Dates</option>
+                                </select>
+                                <input type="date" name="start_date" value="<?php echo isset($_GET['start_date']) ? htmlspecialchars($_GET['start_date']) : ''; ?>" class="form-control">
+                                <input type="date" name="end_date" value="<?php echo isset($_GET['end_date']) ? htmlspecialchars($_GET['end_date']) : ''; ?>" class="form-control">
+                                <input type="text" class="bg-base h-40-px w-auto" name="school" placeholder="School" value="<?php echo isset($_GET['school']) ? htmlspecialchars($_GET['school']) : ''; ?>">
+                                <input type="text" class="bg-base h-40-px w-auto" name="city" placeholder="City" value="<?php echo isset($_GET['city']) ? htmlspecialchars($_GET['city']) : ''; ?>">
+                                <select name="status" class="form-select form-select-sm w-auto ps-12 py-6 radius-12 h-40-px" onchange="this.form.submit()">
+                                    <option value="">All Status</option>
+                                    <option value="active" <?php echo isset($_GET['status']) && $_GET['status'] == 'active' ? 'selected' : ''; ?>>Active</option>
+                                    <option value="inactive" <?php echo isset($_GET['status']) && $_GET['status'] == 'inactive' ? 'selected' : ''; ?>>Inactive</option>
+                                </select>
+                                <button type="submit" class="btn btn-primary btn-sm">Apply Filters</button>
+                            </form>
+                        </div>
                     </div>
-                    <a href="add-user.php" class="btn btn-primary text-sm btn-sm px-12 py-12 radius-8 d-flex align-items-center gap-2"> 
-                        <iconify-icon icon="ic:baseline-plus" class="icon text-xl line-height-1"></iconify-icon>
-                        Add New User
-                    </a>
+                    
                 </div>
                 <div class="card-body p-24">
-                    <div class="table-responsive scroll-sm">
+                    <div class="table-responsive">
                         <table class="table bordered-table sm-table mb-0">
                             <thead>
                                 <tr>
@@ -174,7 +266,7 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
                                         <td><?php echo date('d M Y', strtotime($user['created_at'])); ?></td>
                                         <td>
                                             <div class="d-flex align-items-center">
-                                                <img src="assets/images/user-list/user-list<?php echo ($index % 10) + 1; ?>.png" alt="" class="w-40-px h-40-px rounded-circle flex-shrink-0 me-12 overflow-hidden">
+                                                <img src="<?php echo isset($user['icon']) ? $uri . $user['icon'] : "assets/images/mos_icon.png"; ?>" alt="" class="w-40-px h-40-px rounded-circle flex-shrink-0 me-12 overflow-hidden">
                                                 <div class="flex-grow-1">
                                                     <span class="text-md mb-0 fw-normal text-secondary-light"><?php echo htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?></span>
                                                 </div>
@@ -194,13 +286,13 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
                                         </td>
                                         <td class="text-center"> 
                                             <div class="d-flex align-items-center gap-10 justify-content-center">
-                                                <button type="button" class="bg-info-focus bg-hover-info-200 text-info-600 fw-medium w-40-px h-40-px d-flex justify-content-center align-items-center rounded-circle"> 
+                                                <a href="view-profile.php?userid=<?php echo htmlspecialchars($user['id']); ?>" type="button" class="bg-info-focus bg-hover-info-200 text-info-600 fw-medium w-40-px h-40-px d-flex justify-content-center align-items-center rounded-circle"> 
                                                     <iconify-icon icon="majesticons:eye-line" class="icon text-xl"></iconify-icon>
-                                                </button>
-                                                <button type="button" class="bg-success-focus text-success-600 bg-hover-success-200 fw-medium w-40-px h-40-px d-flex justify-content-center align-items-center rounded-circle"> 
+                                            </a>
+                                                <a href="view-profile.php?userid=<?php echo htmlspecialchars($user['id']); ?>" type="button" class="bg-success-focus text-success-600 bg-hover-success-200 fw-medium w-40-px h-40-px d-flex justify-content-center align-items-center rounded-circle"> 
                                                     <iconify-icon icon="lucide:edit" class="menu-icon"></iconify-icon>
-                                                </button>
-                                                <button type="button" class="bg-danger-focus bg-hover-danger-200 text-danger-600 fw-medium w-40-px h-40-px d-flex justify-content-center align-items-center rounded-circle"> 
+                                                </a>
+                                                <button type="button" class="delete-user bg-danger-focus bg-hover-danger-200 text-danger-600 fw-medium w-40-px h-40-px d-flex justify-content-center align-items-center rounded-circle" data-userid="<?php echo $user['id']; ?>"> 
                                                     <iconify-icon icon="fluent:delete-24-regular" class="menu-icon"></iconify-icon>
                                                 </button>
                                             </div>
@@ -216,7 +308,7 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
                         <ul class="pagination d-flex flex-wrap align-items-center gap-2 justify-content-center">
                             <?php if ($page > 1): ?>
                                 <li class="page-item">
-                                    <a class="page-link bg-neutral-300 text-secondary-light fw-semibold radius-8 border-0 d-flex align-items-center justify-content-center h-32-px w-32-px text-md" href="?page=<?php echo $page - 1; ?>&search=<?php echo urlencode($_GET['search'] ?? ''); ?>&status=<?php echo urlencode($_GET['status'] ?? ''); ?>&per_page=<?php echo $recordsPerPage; ?>">
+                                    <a class="page-link bg-neutral-300 text-secondary-light fw-semibold radius-8 border-0 d-flex align-items-center justify-content-center h-32-px w-32-px text-md" href="?page=<?php echo $page - 1; ?>&search=<?php echo urlencode($_GET['search'] ?? ''); ?>&user_type=<?php echo urlencode($_GET['user_type'] ?? ''); ?>&joined=<?php echo urlencode($_GET['joined'] ?? ''); ?>&school=<?php echo urlencode($_GET['school'] ?? ''); ?>&city=<?php echo urlencode($_GET['city'] ?? ''); ?>&status=<?php echo urlencode($_GET['status'] ?? ''); ?>&per_page=<?php echo $recordsPerPage; ?>">
                                         <iconify-icon icon="ep:d-arrow-left"></iconify-icon>
                                     </a>
                                 </li>
@@ -229,7 +321,7 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
                             for ($i = $startPage; $i <= $endPage; $i++):
                             ?>
                                 <li class="page-item">
-                                    <a class="page-link <?php echo $i == $page ? 'bg-primary-600 text-white' : 'bg-neutral-300 text-secondary-light'; ?> fw-semibold radius-8 border-0 d-flex align-items-center justify-content-center h-32-px w-32-px text-md" href="?page=<?php echo $i; ?>&search=<?php echo urlencode($_GET['search'] ?? ''); ?>&status=<?php echo urlencode($_GET['status'] ?? ''); ?>&per_page=<?php echo $recordsPerPage; ?>">
+                                    <a class="page-link <?php echo $i == $page ? 'bg-primary-600 text-white' : 'bg-neutral-300 text-secondary-light'; ?> fw-semibold radius-8 border-0 d-flex align-items-center justify-content-center h-32-px w-32-px text-md" href="?page=<?php echo $i; ?>&search=<?php echo urlencode($_GET['search'] ?? ''); ?>&user_type=<?php echo urlencode($_GET['user_type'] ?? ''); ?>&joined=<?php echo urlencode($_GET['joined'] ?? ''); ?>&school=<?php echo urlencode($_GET['school'] ?? ''); ?>&city=<?php echo urlencode($_GET['city'] ?? ''); ?>&status=<?php echo urlencode($_GET['status'] ?? ''); ?>&per_page=<?php echo $recordsPerPage; ?>">
                                         <?php echo $i; ?>
                                     </a>
                                 </li>
@@ -237,12 +329,16 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
 
                             <?php if ($page < $totalPages): ?>
                                 <li class="page-item">
-                                    <a class="page-link bg-neutral-300 text-secondary-light fw-semibold radius-8 border-0 d-flex align-items-center justify-content-center h-32-px w-32-px text-md" href="?page=<?php echo $page + 1; ?>&search=<?php echo urlencode($_GET['search'] ?? ''); ?>&status=<?php echo urlencode($_GET['status'] ?? ''); ?>&per_page=<?php echo $recordsPerPage; ?>">
+                                    <a class="page-link bg-neutral-300 text-secondary-light fw-semibold radius-8 border-0 d-flex align-items-center justify-content-center h-32-px w-32-px text-md" href="?page=<?php echo $page + 1; ?>&search=<?php echo urlencode($_GET['search'] ?? ''); ?>&user_type=<?php echo urlencode($_GET['user_type'] ?? ''); ?>&joined=<?php echo urlencode($_GET['joined'] ?? ''); ?>&school=<?php echo urlencode($_GET['school'] ?? ''); ?>&city=<?php echo urlencode($_GET['city'] ?? ''); ?>&status=<?php echo urlencode($_GET['status'] ?? ''); ?>&per_page=<?php echo $recordsPerPage; ?>">
                                         <iconify-icon icon="ep:d-arrow-right"></iconify-icon>
                                     </a>
                                 </li>
                             <?php endif; ?>
                         </ul>
+                    </div>
+
+                    <div class="mt-3">
+                        <button id="downloadExcel" class="btn btn-success">Download Excel</button>
                     </div>
                 </div>
             </div>
@@ -252,27 +348,99 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
     </main>
 
     <!-- Include your JavaScript files here -->
-       <!-- Include your JavaScript files here -->
-       <!-- jQuery library js -->
-  <script src="assets/js/lib/jquery-3.7.1.min.js"></script>
-  <!-- Bootstrap js -->
-  <script src="assets/js/lib/bootstrap.bundle.min.js"></script>
-  <!-- Apex Chart js -->
-  <script src="assets/js/lib/apexcharts.min.js"></script>
-  <!-- Data Table js -->
-  <script src="assets/js/lib/dataTables.min.js"></script>
-  <!-- Iconify Font js -->
-  <script src="assets/js/lib/iconify-icon.min.js"></script>
-  <!-- jQuery UI js -->
-  <script src="assets/js/lib/jquery-ui.min.js"></script>
-  <!-- Vector Map js -->
-  <script src="assets/js/lib/jquery-jvectormap-2.0.5.min.js"></script>
-  <script src="assets/js/lib/jquery-jvectormap-world-mill-en.js"></script>
-  <!-- Popup js -->
-  <script src="assets/js/lib/magnifc-popup.min.js"></script>
-  <!-- Slick Slider js -->
-  <script src="assets/js/lib/slick.min.js"></script>
-  <!-- main js -->
-  <script src="assets/js/app.js"></script>
+    <!-- jQuery library js -->
+    <script src="assets/js/lib/jquery-3.7.1.min.js"></script>
+    <!-- Bootstrap js -->
+    <script src="assets/js/lib/bootstrap.bundle.min.js"></script>
+    <!-- Apex Chart js -->
+    <script src="assets/js/lib/apexcharts.min.js"></script>
+    <!-- Data Table js -->
+    <script src="assets/js/lib/dataTables.min.js"></script>
+    <!-- Iconify Font js -->
+    <script src="assets/js/lib/iconify-icon.min.js"></script>
+    <!-- jQuery UI js -->
+    <script src="assets/js/lib/jquery-ui.min.js"></script>
+    <!-- Vector Map js -->
+    <script src="assets/js/lib/jquery-jvectormap-2.0.5.min.js"></script>
+    <script src="assets/js/lib/jquery-jvectormap-world-mill-en.js"></script>
+    <!-- Popup js -->
+    <script src="assets/js/lib/magnifc-popup.min.js"></script>
+    <!-- Slick Slider js -->
+    <script src="assets/js/lib/slick.min.js"></script>
+    <!-- main js -->
+    <script src="assets/js/app.js"></script>
+
+    <!-- Excel export library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
+
+    <script>
+        // Toggle filters on mobile
+        document.getElementById('showFilters').addEventListener('click', function() {
+            var filterContainer = document.getElementById('filterContainer');
+            filterContainer.classList.toggle('d-none');
+            filterContainer.classList.toggle('d-block');
+        });
+
+        // Excel download functionality
+        document.getElementById('downloadExcel').addEventListener('click', function() {
+            var table = document.querySelector('table');
+            var wb = XLSX.utils.table_to_book(table, {sheet: "Users"});
+            XLSX.writeFile(wb, 'users.xlsx');
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+$(document).ready(function() {
+    $('.delete-user').on('click', function() {
+        const userId = $(this).data('userid');
+        
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "You won't be able to revert this!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+    url: 'delete/user.php',
+    type: 'POST',
+    data: { userId: userId },
+    dataType: 'json',
+    success: function(response) {
+        if (response.status === 'success') {
+            Swal.fire(
+                'Deleted!',
+                response.message,
+                'success'
+            ).then(() => {
+                // Remove the user row from the table
+                $(this).closest('tr').remove();
+            });
+        } else {
+            Swal.fire(
+                'Error!',
+                response.message,
+                'error'
+            );
+        }
+    },
+    error: function(jqXHR, textStatus, errorThrown) {
+        console.error("AJAX Error:", textStatus, errorThrown);
+        console.log("Response Text:", jqXHR.responseText);
+        Swal.fire(
+            'Error!',
+            'An error occurred while deleting the user. Please check the console for details.',
+            'error'
+        );
+    }
+});
+            }
+        });
+    });
+});
+</script>
 </body>
 </html>
