@@ -1,4 +1,4 @@
-  
+<script src="assets/js/app.js"></script>
   <!-- jQuery library js -->
   <script src="assets/js/lib/jquery-3.7.1.min.js"></script>
   <script src="assets/js/lib/fullcalendar.min.js"></script>
@@ -21,6 +21,6 @@
   <!-- Slick Slider js -->
   <script src="assets/js/lib/slick.min.js"></script>
   <!-- main js -->
-  <script src="assets/js/app.js"></script>
+
 
   

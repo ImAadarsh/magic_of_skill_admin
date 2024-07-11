@@ -286,6 +286,9 @@
           <li>
             <a href="add-workshop.php"><i class="ri-circle-fill circle-icon text-danger-main w-auto"></i> New Workshop</a>
           </li>
+          <li>
+            <a href="workshop-reviews.php"><i class="ri-circle-fill circle-icon text-danger-main w-auto"></i>Workshop Reviews</a>
+          </li>
         </ul>
       </li>
       <li class="dropdown">
@@ -317,6 +320,18 @@
             <a href="coupons.php"><i class="ri-circle-fill circle-icon text-danger-main w-auto"></i> View Coupons</a>
           </li>
         </ul>
+      </li>
+      <li>
+        <a href="contacts.php">
+          <iconify-icon icon="fe:vector" class="menu-icon"></iconify-icon>
+          <span>Website Contacts</span> 
+        </a>
+      </li>
+      <li>
+        <a href="subscribers.php">
+          <iconify-icon icon="fe:vector" class="menu-icon"></iconify-icon>
+          <span>Website Subscribers</span> 
+        </a>
       </li>
 
       <li class="sidebar-menu-group-title">Application</li>
