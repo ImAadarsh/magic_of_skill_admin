@@ -5,6 +5,7 @@ $password = "";
 $dbname = "magic_of_skills";
 $connect = mysqli_connect($host,$user,$password,$dbname);
 $uri = 'https://api.magicofskills.com/storage/app/';
+$apiEndpoint = 'http://127.0.0.1:8000/api/';
 date_default_timezone_set('Asia/Kolkata');
 $current_time = time();
 function callAPI($method, $urlpoint, $data, $token){

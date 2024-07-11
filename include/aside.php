@@ -218,6 +218,26 @@
           </li>
         </ul>
       </li>
+      <li class="dropdown">
+        <a href="javascript:void(0)">
+          <iconify-icon icon="flowbite:users-group-outline" class="menu-icon"></iconify-icon>
+          <span>Blogs</span> 
+        </a>
+        <ul class="sidebar-submenu">
+          <li>
+            <a href="blogs.php"><i class="ri-circle-fill circle-icon text-primary-600 w-auto"></i> View Blogs</a>
+          </li>
+          <li>
+            <a href="blog-categories.php"><i class="ri-circle-fill circle-icon text-primary-600 w-auto"></i> View Categories</a>
+          </li>
+          <li>
+            <a href="add-blog-category.php"><i class="ri-circle-fill circle-icon text-info-main w-auto"></i>New Category</a>
+          </li>
+          <li>
+            <a href="add-blog.php"><i class="ri-circle-fill circle-icon text-danger-main w-auto"></i> New Blog</a>
+          </li>
+        </ul>
+      </li>
 
       <li class="sidebar-menu-group-title">Application</li>
 

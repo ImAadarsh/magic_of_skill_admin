@@ -22,6 +22,8 @@ if ($response['user']['user_type']=='admin') {
     $_SESSION['name'] = $response['user']['first_name'];
     $_SESSION['userid'] = $response['user']['id'];
     $_SESSION['usertype'] = $response['user']['user_type'];
+    $_SESSION['token'] = $response['user']['remember_token'];
+    
     header('location: dashboard.php');
 }
 }
