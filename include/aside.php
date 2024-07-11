@@ -288,6 +288,21 @@
           </li>
         </ul>
       </li>
+      <li class="dropdown">
+        <a href="javascript:void(0)">
+          <iconify-icon icon="flowbite:users-group-outline" class="menu-icon"></iconify-icon>
+          <span>Website Testimonials</span> 
+        </a>
+        <ul class="sidebar-submenu">
+          <li>
+            <a href="reviews.php"><i class="ri-circle-fill circle-icon text-primary-600 w-auto"></i> View Testimonials</a>
+          </li>
+          
+          <li>
+            <a href="add-review.php"><i class="ri-circle-fill circle-icon text-danger-main w-auto"></i> New Testimonial</a>
+          </li>
+        </ul>
+      </li>
 
       <li class="sidebar-menu-group-title">Application</li>
 
