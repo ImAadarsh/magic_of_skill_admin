@@ -120,7 +120,19 @@
     <span>Carts</span> 
   </a>
 </li>
-      
+<li>
+  <a href="wishlists.php">
+    <i class="fas fa-heart menu-icon"></i>
+    <span>Wishlist</span> 
+  </a>
+</li>
+<!-- <li>
+  <a href="workshop-manual.php">
+    <i class="fas fa-heart menu-icon"></i>
+    <span>User Add</span> 
+  </a>
+</li> -->
+
     </ul>
   </div>
 </aside>
