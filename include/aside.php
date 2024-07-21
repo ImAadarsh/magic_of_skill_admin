@@ -93,6 +93,23 @@
       </li>
     </ul>
   </li>
+  <li class="dropdown">
+    <a href="javascript:void(0)">
+      <iconify-icon icon="fe:vector" class="menu-icon"></iconify-icon>
+      <span>Quizes</span> 
+    </a>
+    <ul class="sidebar-submenu">
+      <li>
+        <a href="quizzes.php"><i class="ri-circle-fill circle-icon text-primary-600 w-auto"></i> View Quizes</a>
+      </li>
+      <li>
+        <a href="quiz-results.php"><i class="ri-circle-fill circle-icon text-primary-600 w-auto"></i> View Results</a>
+      </li>
+      <li>
+        <a href="add-quiz.php"><i class="ri-circle-fill circle-icon text-danger-main w-auto"></i> Add Quiz</a>
+      </li>
+    </ul>
+  </li>
 
   <li class="sidebar-menu-group-title">Communications</li>
   <li>
