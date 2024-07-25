@@ -32,7 +32,7 @@ if (isset($_POST['questions']) && is_array($_POST['questions'])) {
             die("Execute failed: " . $updateQuestionStmt->error);
         }
 
-        echo "Question $questionId basic info updated successfully.<br>";
+        // echo "Question $questionId basic info updated successfully.<br>";
 
         // For multiple choice questions
         if ($questionType === 'multiple_choice') {
@@ -59,7 +59,7 @@ if (isset($_POST['questions']) && is_array($_POST['questions'])) {
                 die("Execute failed: " . $updateOptionsStmt->error);
             }
 
-            echo "Multiple choice options for question $questionId updated successfully.<br>";
+            // echo "Multiple choice options for question $questionId updated successfully.<br>";
         } 
         // For fill in the blank questions
         elseif ($questionType === 'fill_blank') {
@@ -90,7 +90,7 @@ if (isset($_POST['questions']) && is_array($_POST['questions'])) {
                 }
             }
 
-            echo "Fill-in-the-blank answers for question $questionId updated successfully.<br>";
+            // echo "Fill-in-the-blank answers for question $questionId updated successfully.<br>";
         }
     }
 }
@@ -136,7 +136,7 @@ if ($quiz === null) {
 }
 
 // Fetch questions for this quiz
-echo "Fetching questions for quiz ID: " . $quizId . "<br>";
+// echo "Fetching questions for quiz ID: " . $quizId . "<br>";
 
 $questionsSql = "SELECT q.*, 
                         CASE 
@@ -150,7 +150,7 @@ $questionsSql = "SELECT q.*,
                  FROM questions q 
                  WHERE q.quiz_id = ?";
 
-echo "Questions SQL: " . $questionsSql . "<br>";
+// echo "Questions SQL: " . $questionsSql . "<br>";
 
 $questionsStmt = $connect->prepare($questionsSql);
 
@@ -158,19 +158,19 @@ if ($questionsStmt === false) {
     die("Prepare failed for questions query: " . $connect->error . " (Error number: " . $connect->errno . ")");
 }
 
-echo "Questions prepare statement successful.<br>";
+// echo "Questions prepare statement successful.<br>";
 
 if (!$questionsStmt->bind_param("i", $quizId)) {
     die("Binding parameters failed for questions query: " . $questionsStmt->error);
 }
 
-echo "Questions parameter binding successful.<br>";
+// echo "Questions parameter binding successful.<br>";
 
 if (!$questionsStmt->execute()) {
     die("Execute failed for questions query: " . $questionsStmt->error);
 }
 
-echo "Questions query executed successfully.<br>";
+// echo "Questions query executed successfully.<br>";
 
 $questionsResult = $questionsStmt->get_result();
 if ($questionsResult === false) {
@@ -179,7 +179,7 @@ if ($questionsResult === false) {
 
 $questions = $questionsResult->fetch_all(MYSQLI_ASSOC);
 
-echo "Questions fetched successfully. Number of questions: " . count($questions) . "<br>";
+// echo "Questions fetched successfully. Number of questions: " . count($questions) . "<br>";
 
 // Process the fetched questions
 foreach ($questions as &$question) {
