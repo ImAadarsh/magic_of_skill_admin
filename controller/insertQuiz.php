@@ -2,33 +2,26 @@
 ob_start();
 header('Content-Type: application/json');
 
-// Enable error reporting for debugging
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 try {
-    // Include your database connection file
     include "../include/session.php";
     include "../include/connect.php";
 
-    // Ensure that this is a POST request
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Invalid request method');
     }
 
-    // Debugging: Log received data
     error_log("Received POST data: " . print_r($_POST, true));
 
-    // Retrieve and sanitize the quiz data
     $quizName = mysqli_real_escape_string($connect, $_POST['quiz_name'] ?? '');
     $quizDescription = mysqli_real_escape_string($connect, $_POST['quiz_description'] ?? '');
     $quizDate = mysqli_real_escape_string($connect, $_POST['quiz_date'] ?? '');
     $durationMinutes = intval($_POST['duration_minutes'] ?? 0);
 
-    // Start a transaction
     $connect->begin_transaction();
 
-    // Insert the quiz
     $insertQuizQuery = "INSERT INTO quizzes (quiz_name, creation_date, duration_minutes) VALUES (?, ?, ?)";
     $stmt = $connect->prepare($insertQuizQuery);
     $stmt->bind_param("ssi", $quizName, $quizDate, $durationMinutes);
@@ -38,47 +31,56 @@ try {
     }
     $quizId = $stmt->insert_id;
 
-    // Process each question
-    if (isset($_POST['questions']) && is_array($_POST['questions'])) {
-        foreach ($_POST['questions'] as $question) {
-            $questionText = mysqli_real_escape_string($connect, $question['text'] ?? '');
-            $marks = floatval($question['marks'] ?? 0);
+    foreach ($_POST['questions'] as $question) {
+        $questionText = mysqli_real_escape_string($connect, $question['text']);
+        $questionType = $question['type'];
+        $marks = floatval($question['marks']);
+
+        if ($questionType === 'multiple_choice') {
             $correctOption = intval($question['correct_option'] ?? 0);
 
-            // Sanitize options
             $options = array_map(function($option) use ($connect) {
                 return mysqli_real_escape_string($connect, $option);
             }, $question['options'] ?? []);
 
-            // Ensure we have 4 options
             while (count($options) < 4) {
                 $options[] = '';
             }
 
-            // Insert the question
-            $insertQuestionQuery = "INSERT INTO questions (quiz_id, question_text, option1, option2, option3, option4, correct_option, marks) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            $insertQuestionQuery = "INSERT INTO questions (quiz_id, question_text, option1, option2, option3, option4, correct_option, marks, question_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $stmt = $connect->prepare($insertQuestionQuery);
-            $stmt->bind_param("isssssid", $quizId, $questionText, $options[0], $options[1], $options[2], $options[3], $correctOption, $marks);
-            
-            if (!$stmt->execute()) {
-                throw new Exception("Error inserting question: " . $stmt->error);
-            }
+            $stmt->bind_param("isssssids", $quizId, $questionText, $options[0], $options[1], $options[2], $options[3], $correctOption, $marks, $questionType);
+        } elseif ($questionType === 'fill_blank') {
+            $insertQuestionQuery = "INSERT INTO questions (quiz_id, question_text, marks, question_type) VALUES (?, ?, ?, ?)";
+            $stmt = $connect->prepare($insertQuestionQuery);
+            $stmt->bind_param("isds", $quizId, $questionText, $marks, $questionType);
+        } else {
+            throw new Exception("Invalid question type: " . $questionType);
+        }
+        
+        if (!$stmt->execute()) {
+            throw new Exception("Error inserting question: " . $stmt->error);
+        }
+        $questionId = $stmt->insert_id;
+
+        if ($questionType === 'fill_blank') {
+            $correctAnswer = mysqli_real_escape_string($connect, $question['correct_answer']);
+            $insertAnswerSql = "INSERT INTO fill_blank_answers (question_id, correct_answer) VALUES (?, ?)";
+            $stmt = $connect->prepare($insertAnswerSql);
+            $stmt->bind_param("is", $questionId, $correctAnswer);
+            $stmt->execute();
         }
     }
 
-    // If everything is successful, commit the transaction
     $connect->commit();
     echo json_encode(['status' => true, 'message' => 'Quiz added successfully']);
 } catch (Exception $e) {
-    // If there's an error, roll back the transaction if it's active
     if (isset($connect) && $connect->connect_errno == 0) {
         $connect->rollback();
     }
     echo json_encode(['status' => false, 'message' => 'Error: ' . $e->getMessage()]);
-    // Log the error
     error_log("Quiz insertion error: " . $e->getMessage());
 } finally {
-    // Close the database connection if it's open
     if (isset($connect) && $connect->connect_errno == 0) {
         $connect->close();
     }

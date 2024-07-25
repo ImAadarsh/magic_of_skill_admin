@@ -60,7 +60,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 }
 
 $sql = "SELECT uqa.*, q.quiz_name, u.first_name, u.last_name, u.school, u.grade, u.city,
-               TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time) as time_taken
+               TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time) as time_taken,
+               (SELECT SUM(marks) FROM questions WHERE quiz_id = q.quiz_id) as total_possible_score
         FROM user_quiz_attempts uqa
         JOIN quizzes q ON uqa.quiz_id = q.quiz_id
         JOIN users u ON uqa.user_id = u.id";
@@ -89,6 +90,14 @@ if (!$stmt->execute()) {
 $result = $stmt->get_result();
 $quizResults = $result->fetch_all(MYSQLI_ASSOC);
 
+// Pagination
+$resultsPerPage = 20;
+$totalResults = count($quizResults);
+$totalPages = ceil($totalResults / $resultsPerPage);
+$currentPage = isset($_GET['page']) ? max(1, min($totalPages, intval($_GET['page']))) : 1;
+$offset = ($currentPage - 1) * $resultsPerPage;
+$quizResults = array_slice($quizResults, $offset, $resultsPerPage);
+
 ?>
 
 <!DOCTYPE html>
@@ -101,6 +110,7 @@ $quizResults = $result->fetch_all(MYSQLI_ASSOC);
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <style>
         body {
@@ -249,12 +259,14 @@ $quizResults = $result->fetch_all(MYSQLI_ASSOC);
                         </select>
                     </div>
                     <div class="col-md-4 d-flex align-items-end">
-                        <button type="submit" class="apply-filters-btn">Apply Filters</button>
+                        <button type="submit" class="apply-filters-btn me-2">Apply Filters</button>
+                        <a href="<?php echo $_SERVER['PHP_SELF']; ?>" class="btn btn-secondary">Clear Filters</a>
                     </div>
                 </form>
             </div>
 
             <div class="results-container">
+                <button id="exportCSV" class="btn btn-success mb-3">Export to CSV</button>
                 <?php if (empty($quizResults)): ?>
                     <p class="no-results">No results found for the selected filters.</p>
                 <?php else: ?>
@@ -290,12 +302,23 @@ $quizResults = $result->fetch_all(MYSQLI_ASSOC);
                                     <td><?php echo htmlspecialchars($result['school']); ?></td>
                                     <td><?php echo htmlspecialchars($result['grade']); ?></td>
                                     <td><?php echo htmlspecialchars($result['city']); ?></td>
-                                    <td class="score-cell"><?php echo $result['score']; ?></td>
+                                    <td class="score-cell"><?php echo $result['score']; ?> / <?php echo $result['total_possible_score']; ?></td>
                                     <td class="time-taken"><?php echo gmdate("H:i:s", $result['time_taken']); ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
+                    <nav aria-label="Quiz results pagination">
+                        <ul class="pagination justify-content-center">
+                            <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                                <li class="page-item <?php echo $i == $currentPage ? 'active' : ''; ?>">
+                                    <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $i])); ?>">
+                                        <?php echo $i; ?>
+                                    </a>
+                                </li>
+                            <?php endfor; ?>
+                        </ul>
+                    </nav>
                 <?php endif; ?>
             </div>
         </div>
@@ -305,11 +328,39 @@ $quizResults = $result->fetch_all(MYSQLI_ASSOC);
 
     <?php include "include/script.php" ?>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             flatpickr("#quiz_date", {
                 dateFormat: "Y-m-d",
                 allowInput: true
+            });
+
+            $('.results-table').DataTable({
+                "pageLength": 20,
+                "order": [[6, "desc"], [7, "asc"]],
+                "columnDefs": [
+                    { "orderable": false, "targets": [3, 4, 5] }
+                ]
+            });
+
+            document.getElementById('exportCSV').addEventListener('click', function() {
+                let csv = 'Rank,Name,Quiz,School,Grade,City,Score,Time Taken\n';
+                document.querySelectorAll('.results-table tbody tr').forEach(function(row) {
+                    let rowData = Array.from(row.cells).map(cell => '"' + cell.textContent.trim() + '"');
+                    csv += rowData.join(',') + '\n';
+                });
+                let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                let link = document.createElement("a");
+                if (link.download !== undefined) {
+                    let url = URL.createObjectURL(blob);
+                    link.setAttribute("href", url);
+                    link.setAttribute("download", "quiz_results.csv");
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
             });
         });
     </script>

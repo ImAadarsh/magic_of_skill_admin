@@ -53,12 +53,17 @@ include "include/connect.php";
               <input type="number" class="form-control" id="duration_minutes" name="duration_minutes" required>
             </div>
 
-            <div id="questions-container">
-              <!-- Questions will be added here dynamically -->
-            </div>
-
-            <button type="button" class="btn btn-secondary mb-3" id="add-question">Add Question</button>
-
+            <div id="questions-container" class="mb-4">
+    <!-- Existing questions will be loaded here -->
+</div>
+<div class="d-flex gap-2 mb-4">
+    <button type="button" class="btn btn-primary" onclick="addQuestion('multiple_choice')">
+        <i class="fas fa-plus-circle me-2"></i>Add Multiple Choice Question
+    </button>
+    <button type="button" class="btn btn-success" onclick="addQuestion('fill_blank')">
+        <i class="fas fa-plus-circle me-2"></i>Add Fill in the Blank Question
+    </button>
+</div>
             <button type="submit" class="btn btn-primary">Submit Quiz</button>
           </form>
         </div>
@@ -73,51 +78,76 @@ include "include/connect.php";
   <script>
     let questionCount = 0;
 
-    function addQuestion() {
-      questionCount++;
-      const questionHtml = `
-        <div class="question-block" id="question-${questionCount}">
-          <h4>Question ${questionCount}</h4>
-          <div class="mb-3">
-            <label for="question_text_${questionCount}" class="form-label">Question Text</label>
-            <input type="text" class="form-control" id="question_text_${questionCount}" name="questions[${questionCount}][text]" required>
-          </div>
-          <div class="mb-3">
-            <label for="question_marks_${questionCount}" class="form-label">Marks</label>
-            <input type="number" class="form-control" id="question_marks_${questionCount}" name="questions[${questionCount}][marks]" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Options</label>
-            <div class="input-group mb-2">
-              <div class="input-group-text">
-                <input class="form-check-input mt-0" type="radio" name="questions[${questionCount}][correct_option]" value="1" required>
-              </div>
-              <input type="text" class="form-control" name="questions[${questionCount}][options][]" placeholder="Option 1" required>
+    function addQuestion(type) {
+    const container = document.getElementById('questions-container');
+    const questionIndex = container.children.length;
+    let questionHtml = `
+        <div class="question-block card mb-4">
+            <div class="card-body">
+                <input type="hidden" name="questions[${questionIndex}][type]" value="${type}">
+                <div class="mb-3">
+                    <label class="form-label">Question Text:</label>
+                    <input type="text" class="form-control" name="questions[${questionIndex}][text]" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Marks:</label>
+                    <input type="number" class="form-control" name="questions[${questionIndex}][marks]" required>
+                </div>
+    `;
+
+    if (type === 'multiple_choice') {
+        questionHtml += `
+            <div class="mb-3">
+                <label class="form-label">Options:</label>
+                <div class="input-group mb-2">
+                    <span class="input-group-text">1</span>
+                    <input type="text" class="form-control" name="questions[${questionIndex}][options][]" placeholder="Option 1" required>
+                </div>
+                <div class="input-group mb-2">
+                    <span class="input-group-text">2</span>
+                    <input type="text" class="form-control" name="questions[${questionIndex}][options][]" placeholder="Option 2" required>
+                </div>
+                <div class="input-group mb-2">
+                    <span class="input-group-text">3</span>
+                    <input type="text" class="form-control" name="questions[${questionIndex}][options][]" placeholder="Option 3" required>
+                </div>
+                <div class="input-group mb-2">
+                    <span class="input-group-text">4</span>
+                    <input type="text" class="form-control" name="questions[${questionIndex}][options][]" placeholder="Option 4" required>
+                </div>
             </div>
-            <div class="input-group mb-2">
-              <div class="input-group-text">
-                <input class="form-check-input mt-0" type="radio" name="questions[${questionCount}][correct_option]" value="2">
-              </div>
-              <input type="text" class="form-control" name="questions[${questionCount}][options][]" placeholder="Option 2" required>
+            <div class="mb-3">
+                <label class="form-label">Correct Option:</label>
+                <select class="form-select" name="questions[${questionIndex}][correct_option]">
+                    <option value="1">Option 1</option>
+                    <option value="2">Option 2</option>
+                    <option value="3">Option 3</option>
+                    <option value="4">Option 4</option>
+                </select>
             </div>
-            <div class="input-group mb-2">
-              <div class="input-group-text">
-                <input class="form-check-input mt-0" type="radio" name="questions[${questionCount}][correct_option]" value="3">
-              </div>
-              <input type="text" class="form-control" name="questions[${questionCount}][options][]" placeholder="Option 3" required>
+        `;
+    } else if (type === 'fill_blank') {
+        questionHtml += `
+            <div class="mb-3">
+                <label class="form-label">Correct Answer:</label>
+                <input type="text" class="form-control" name="questions[${questionIndex}][correct_answer]" required>
             </div>
-            <div class="input-group mb-2">
-              <div class="input-group-text">
-                <input class="form-check-input mt-0" type="radio" name="questions[${questionCount}][correct_option]" value="4">
-              </div>
-              <input type="text" class="form-control" name="questions[${questionCount}][options][]" placeholder="Option 4" required>
-            </div>
-          </div>
-          <button type="button" class="btn btn-danger btn-sm" onclick="removeQuestion(${questionCount})">Remove Question</button>
-        </div>
-      `;
-      $('#questions-container').append(questionHtml);
+        `;
     }
+
+    questionHtml += `
+            <button type="button" class="btn btn-danger" onclick="removeQuestion(this)">
+                <i class="fas fa-trash me-2"></i>Remove Question
+            </button>
+        </div>
+    </div>`;
+
+    container.insertAdjacentHTML('beforeend', questionHtml);
+}
+
+function removeQuestion(button) {
+    button.closest('.question-block').remove();
+}
 
     function removeQuestion(id) {
       $(`#question-${id}`).remove();

@@ -3,7 +3,6 @@ include 'include/session.php';
 include 'include/connect.php';
 
 $quizId = $_GET['id'] ?? 0;
-
 // Fetch quiz details
 $quizSql = "SELECT * FROM quizzes WHERE quiz_id = ?";
 $quizStmt = $connect->prepare($quizSql);
@@ -12,7 +11,16 @@ $quizStmt->execute();
 $quiz = $quizStmt->get_result()->fetch_assoc();
 
 // Fetch questions for this quiz
-$questionsSql = "SELECT * FROM questions WHERE quiz_id = ? ORDER BY question_id";
+$questionsSql = "SELECT q.*, 
+                 CASE WHEN q.question_type = 'fill_blank' 
+                      THEN (SELECT GROUP_CONCAT(correct_answer SEPARATOR '||') 
+                            FROM fill_blank_answers 
+                            WHERE question_id = q.question_id)
+                      ELSE NULL
+                 END AS fill_blank_answers
+                 FROM questions q 
+                 WHERE q.quiz_id = ? 
+                 ORDER BY q.question_id";
 $questionsStmt = $connect->prepare($questionsSql);
 $questionsStmt->bind_param("i", $quizId);
 $questionsStmt->execute();
@@ -103,6 +111,14 @@ $questions = $questionsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
         .marks {
             font-weight: 600;
         }
+        .fill-blank-answer {
+            background-color: #e7f3fe;
+            color: #1a73e8;
+            font-weight: 600;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            margin-top: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -124,18 +140,31 @@ $questions = $questionsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
                 <?php foreach ($questions as $index => $question): ?>
                     <div class="question-container">
                         <p class="question-text">Q<?php echo $index + 1; ?>: <?php echo htmlspecialchars($question['question_text']); ?></p>
-                        <ul class="options-list">
-                            <?php for ($i = 1; $i <= 4; $i++): ?>
-                                <li class="option-item <?php echo $i == $question['correct_option'] ? 'correct-answer' : ''; ?>">
-                                    <?php echo htmlspecialchars($question["option{$i}"]); ?>
-                                    <?php if ($i == $question['correct_option']) echo " ✓"; ?>
-                                </li>
-                            <?php endfor; ?>
-                        </ul>
-                        <div class="question-footer">
-                            <span class="marks">Marks: <?php echo $question['marks']; ?></span>
-                            <span>Correct Answer: Option <?php echo $question['correct_option']; ?></span>
-                        </div>
+                        <?php if ($question['question_type'] === 'multiple_choice'): ?>
+                            <ul class="options-list">
+                                <?php for ($i = 1; $i <= 4; $i++): ?>
+                                    <li class="option-item <?php echo $i == $question['correct_option'] ? 'correct-answer' : ''; ?>">
+                                        <?php echo htmlspecialchars($question["option{$i}"]); ?>
+                                        <?php if ($i == $question['correct_option']) echo " ✓"; ?>
+                                    </li>
+                                <?php endfor; ?>
+                            </ul>
+                            <div class="question-footer">
+                                <span class="marks">Marks: <?php echo $question['marks']; ?></span>
+                                <span>Correct Answer: Option <?php echo $question['correct_option']; ?></span>
+                            </div>
+                        <?php elseif ($question['question_type'] === 'fill_blank'): ?>
+                            <div class="fill-blank-answer">
+                                Correct Answer(s): 
+                                <?php 
+                                $answers = explode('||', $question['fill_blank_answers']);
+                                echo implode(', ', array_map('htmlspecialchars', $answers));
+                                ?>
+                            </div>
+                            <div class="question-footer">
+                                <span class="marks">Marks: <?php echo $question['marks']; ?></span>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
             </div>

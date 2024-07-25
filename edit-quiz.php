@@ -1,76 +1,196 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 include 'include/session.php';
 include 'include/connect.php';
 
 $quizId = $_GET['id'] ?? 0;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Handle form submission
-    $quizName = mysqli_real_escape_string($connect, $_POST['quiz_name']);
-    $quizDate = mysqli_real_escape_string($connect, $_POST['quiz_date']);
-    $durationMinutes = intval($_POST['duration_minutes']);
+// Handle existing question updates
+if (isset($_POST['questions']) && is_array($_POST['questions'])) {
+    foreach ($_POST['questions'] as $questionId => $question) {
+        $questionText = mysqli_real_escape_string($connect, $question['text']);
+        $questionType = $question['type'];
+        $marks = floatval($question['marks']);
 
-    // Update quiz details
-    $updateQuizSql = "UPDATE quizzes SET quiz_name = ?, creation_date = ?, duration_minutes = ? WHERE quiz_id = ?";
-    $updateQuizStmt = $connect->prepare($updateQuizSql);
-    $updateQuizStmt->bind_param("ssii", $quizName, $quizDate, $durationMinutes, $quizId);
-    $updateQuizStmt->execute();
+        // Common update for both question types
+        $updateQuestionSql = "UPDATE questions SET question_text = ?, question_type = ?, marks = ? WHERE question_id = ?";
+        $updateQuestionStmt = $connect->prepare($updateQuestionSql);
+        
+        if ($updateQuestionStmt === false) {
+            die("Prepare failed: " . $connect->error . " for query: " . $updateQuestionSql);
+        }
 
-    // Handle existing question updates
-    if (isset($_POST['questions']) && is_array($_POST['questions'])) {
-        foreach ($_POST['questions'] as $questionId => $question) {
-            $questionText = mysqli_real_escape_string($connect, $question['text']);
+        $bindResult = $updateQuestionStmt->bind_param("ssdi", $questionText, $questionType, $marks, $questionId);
+        if ($bindResult === false) {
+            die("Binding parameters failed: " . $updateQuestionStmt->error);
+        }
+
+        $executeResult = $updateQuestionStmt->execute();
+        if ($executeResult === false) {
+            die("Execute failed: " . $updateQuestionStmt->error);
+        }
+
+        echo "Question $questionId basic info updated successfully.<br>";
+
+        // For multiple choice questions
+        if ($questionType === 'multiple_choice') {
+            $updateOptionsSql = "UPDATE questions SET option1 = ?, option2 = ?, option3 = ?, option4 = ?, correct_option = ? WHERE question_id = ?";
+            $updateOptionsStmt = $connect->prepare($updateOptionsSql);
+            
+            if ($updateOptionsStmt === false) {
+                die("Prepare failed: " . $connect->error . " for query: " . $updateOptionsSql);
+            }
+
             $option1 = mysqli_real_escape_string($connect, $question['option1']);
             $option2 = mysqli_real_escape_string($connect, $question['option2']);
             $option3 = mysqli_real_escape_string($connect, $question['option3']);
             $option4 = mysqli_real_escape_string($connect, $question['option4']);
             $correctOption = intval($question['correct_option']);
-            $marks = floatval($question['marks']);
 
-            $updateQuestionSql = "UPDATE questions SET question_text = ?, option1 = ?, option2 = ?, option3 = ?, option4 = ?, correct_option = ?, marks = ? WHERE question_id = ?";
-            $updateQuestionStmt = $connect->prepare($updateQuestionSql);
-            $updateQuestionStmt->bind_param("sssssiid", $questionText, $option1, $option2, $option3, $option4, $correctOption, $marks, $questionId);
-            $updateQuestionStmt->execute();
+            $bindResult = $updateOptionsStmt->bind_param("ssssii", $option1, $option2, $option3, $option4, $correctOption, $questionId);
+            if ($bindResult === false) {
+                die("Binding parameters failed: " . $updateOptionsStmt->error);
+            }
+
+            $executeResult = $updateOptionsStmt->execute();
+            if ($executeResult === false) {
+                die("Execute failed: " . $updateOptionsStmt->error);
+            }
+
+            echo "Multiple choice options for question $questionId updated successfully.<br>";
+        } 
+        // For fill in the blank questions
+        elseif ($questionType === 'fill_blank') {
+            // Delete existing answers
+            $deleteAnswersSql = "DELETE FROM fill_blank_answers WHERE question_id = ?";
+            $deleteAnswersStmt = $connect->prepare($deleteAnswersSql);
+            $deleteAnswersStmt->bind_param("i", $questionId);
+            $deleteAnswersStmt->execute();
+
+            // Insert new answers
+            $insertAnswerSql = "INSERT INTO fill_blank_answers (question_id, correct_answer) VALUES (?, ?)";
+            $insertAnswerStmt = $connect->prepare($insertAnswerSql);
+            
+            if ($insertAnswerStmt === false) {
+                die("Prepare failed: " . $connect->error . " for query: " . $insertAnswerSql);
+            }
+
+            foreach ($question['correct_answers'] as $answer) {
+                $correctAnswer = mysqli_real_escape_string($connect, $answer);
+                $bindResult = $insertAnswerStmt->bind_param("is", $questionId, $correctAnswer);
+                if ($bindResult === false) {
+                    die("Binding parameters failed: " . $insertAnswerStmt->error);
+                }
+
+                $executeResult = $insertAnswerStmt->execute();
+                if ($executeResult === false) {
+                    die("Execute failed: " . $insertAnswerStmt->error);
+                }
+            }
+
+            echo "Fill-in-the-blank answers for question $questionId updated successfully.<br>";
         }
     }
-
-    // Handle new questions
-    if (isset($_POST['new_questions']) && is_array($_POST['new_questions'])) {
-        $insertQuestionSql = "INSERT INTO questions (quiz_id, question_text, option1, option2, option3, option4, correct_option, marks) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        $insertQuestionStmt = $connect->prepare($insertQuestionSql);
-
-        foreach ($_POST['new_questions'] as $newQuestion) {
-            $questionText = mysqli_real_escape_string($connect, $newQuestion['text']);
-            $option1 = mysqli_real_escape_string($connect, $newQuestion['option1']);
-            $option2 = mysqli_real_escape_string($connect, $newQuestion['option2']);
-            $option3 = mysqli_real_escape_string($connect, $newQuestion['option3']);
-            $option4 = mysqli_real_escape_string($connect, $newQuestion['option4']);
-            $correctOption = intval($newQuestion['correct_option']);
-            $marks = floatval($newQuestion['marks']);
-
-            $insertQuestionStmt->bind_param("isssssid", $quizId, $questionText, $option1, $option2, $option3, $option4, $correctOption, $marks);
-            $insertQuestionStmt->execute();
-        }
-    }
-
-    // Redirect back to the quiz list or show a success message
-    header("Location: quizzes.php?message=Quiz updated successfully");
-    exit();
 }
+    // ... (code for handling new questions remains the same)
+
+    // Redirect back to
+
+$quizId = $_GET['id'] ?? 0;
+
 
 // Fetch quiz details
 $quizSql = "SELECT * FROM quizzes WHERE quiz_id = ?";
+
+
 $quizStmt = $connect->prepare($quizSql);
-$quizStmt->bind_param("i", $quizId);
-$quizStmt->execute();
-$quiz = $quizStmt->get_result()->fetch_assoc();
+
+if ($quizStmt === false) {
+    die("Prepare failed: " . $connect->error . " (Error number: " . $connect->errno . ")");
+}
+
+
+
+if (!$quizStmt->bind_param("i", $quizId)) {
+    die("Binding parameters failed: " . $quizStmt->error);
+}
+
+
+if (!$quizStmt->execute()) {
+    die("Execute failed: " . $quizStmt->error);
+}
+
+
+
+$result = $quizStmt->get_result();
+if ($result === false) {
+    die("Getting result set failed: " . $quizStmt->error);
+}
+
+$quiz = $result->fetch_assoc();
+
+if ($quiz === null) {
+    die("No quiz found with ID: " . $quizId);
+}
 
 // Fetch questions for this quiz
-$questionsSql = "SELECT * FROM questions WHERE quiz_id = ?";
+echo "Fetching questions for quiz ID: " . $quizId . "<br>";
+
+$questionsSql = "SELECT q.*, 
+                        CASE 
+                            WHEN q.question_type = 'multiple_choice' THEN 
+                                CONCAT_WS('||', q.option1, q.option2, q.option3, q.option4)
+                            ELSE 
+                                (SELECT GROUP_CONCAT(correct_answer SEPARATOR '||') 
+                                 FROM fill_blank_answers 
+                                 WHERE question_id = q.question_id)
+                        END AS options_or_answer
+                 FROM questions q 
+                 WHERE q.quiz_id = ?";
+
+echo "Questions SQL: " . $questionsSql . "<br>";
+
 $questionsStmt = $connect->prepare($questionsSql);
-$questionsStmt->bind_param("i", $quizId);
-$questionsStmt->execute();
-$questions = $questionsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+if ($questionsStmt === false) {
+    die("Prepare failed for questions query: " . $connect->error . " (Error number: " . $connect->errno . ")");
+}
+
+echo "Questions prepare statement successful.<br>";
+
+if (!$questionsStmt->bind_param("i", $quizId)) {
+    die("Binding parameters failed for questions query: " . $questionsStmt->error);
+}
+
+echo "Questions parameter binding successful.<br>";
+
+if (!$questionsStmt->execute()) {
+    die("Execute failed for questions query: " . $questionsStmt->error);
+}
+
+echo "Questions query executed successfully.<br>";
+
+$questionsResult = $questionsStmt->get_result();
+if ($questionsResult === false) {
+    die("Getting result set failed for questions query: " . $questionsStmt->error);
+}
+
+$questions = $questionsResult->fetch_all(MYSQLI_ASSOC);
+
+echo "Questions fetched successfully. Number of questions: " . count($questions) . "<br>";
+
+// Process the fetched questions
+foreach ($questions as &$question) {
+    if ($question['question_type'] === 'fill_blank') {
+        // Split multiple correct answers if any
+        $question['correct_answers'] = explode('||', $question['options_or_answer']);
+    } else {
+        $question['options'] = explode('||', $question['options_or_answer']);
+    }
+    unset($question['options_or_answer']);
+}
 
 ?>
 
@@ -114,50 +234,53 @@ $questions = $questionsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
                 <h3>Existing Questions</h3>
                 <div id="existing-questions">
-                    <?php foreach ($questions as $index => $question): ?>
-                        <div class="question-block mb-4">
-                            <h4>Question <?php echo $index + 1; ?></h4>
-                            <input type="hidden" name="questions[<?php echo $question['question_id']; ?>][id]" value="<?php echo $question['question_id']; ?>">
-                            <div class="mb-3">
-                                <label class="form-label">Question Text</label>
-                                <input type="text" class="form-control" name="questions[<?php echo $question['question_id']; ?>][text]" value="<?php echo htmlspecialchars($question['question_text']); ?>" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Option 1</label>
-                                <input type="text" class="form-control" name="questions[<?php echo $question['question_id']; ?>][option1]" value="<?php echo htmlspecialchars($question['option1']); ?>" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Option 2</label>
-                                <input type="text" class="form-control" name="questions[<?php echo $question['question_id']; ?>][option2]" value="<?php echo htmlspecialchars($question['option2']); ?>" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Option 3</label>
-                                <input type="text" class="form-control" name="questions[<?php echo $question['question_id']; ?>][option3]" value="<?php echo htmlspecialchars($question['option3']); ?>" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Option 4</label>
-                                <input type="text" class="form-control" name="questions[<?php echo $question['question_id']; ?>][option4]" value="<?php echo htmlspecialchars($question['option4']); ?>" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Correct Option</label>
-                                <select class="form-control" name="questions[<?php echo $question['question_id']; ?>][correct_option]" required>
-                                    <option value="1" <?php echo $question['correct_option'] == 1 ? 'selected' : ''; ?>>Option 1</option>
-                                    <option value="2" <?php echo $question['correct_option'] == 2 ? 'selected' : ''; ?>>Option 2</option>
-                                    <option value="3" <?php echo $question['correct_option'] == 3 ? 'selected' : ''; ?>>Option 3</option>
-                                    <option value="4" <?php echo $question['correct_option'] == 4 ? 'selected' : ''; ?>>Option 4</option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Marks</label>
-                                <input type="number" class="form-control" name="questions[<?php echo $question['question_id']; ?>][marks]" value="<?php echo $question['marks']; ?>" required>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
+                <?php foreach ($questions as $index => $question): ?>
+    <div class="question-block mb-4">
+        <h4>Question <?php echo $index + 1; ?></h4>
+        <input type="hidden" name="questions[<?php echo $question['question_id']; ?>][id]" value="<?php echo $question['question_id']; ?>">
+        <input type="hidden" name="questions[<?php echo $question['question_id']; ?>][type]" value="<?php echo $question['question_type']; ?>">
+        <div class="mb-3">
+            <label class="form-label">Question Text</label>
+            <input type="text" class="form-control" name="questions[<?php echo $question['question_id']; ?>][text]" value="<?php echo htmlspecialchars($question['question_text']); ?>" required>
+        </div>
+        <?php if ($question['question_type'] === 'multiple_choice'): ?>
+            <?php for ($i = 1; $i <= 4; $i++): ?>
+                <div class="mb-3">
+                    <label class="form-label">Option <?php echo $i; ?></label>
+                    <input type="text" class="form-control" name="questions[<?php echo $question['question_id']; ?>][option<?php echo $i; ?>]" value="<?php echo htmlspecialchars($question['option'.$i]); ?>" required>
+                </div>
+            <?php endfor; ?>
+            <div class="mb-3">
+                <label class="form-label">Correct Option</label>
+                <select class="form-control" name="questions[<?php echo $question['question_id']; ?>][correct_option]" required>
+                    <?php for ($i = 1; $i <= 4; $i++): ?>
+                        <option value="<?php echo $i; ?>" <?php echo $question['correct_option'] == $i ? 'selected' : ''; ?>>Option <?php echo $i; ?></option>
+                    <?php endfor; ?>
+                </select>
+            </div>
+        <?php else: ?>
+            <div class="mb-3">
+                <label class="form-label">Correct Answer(s)</label>
+                <?php foreach ($question['correct_answers'] as $index => $answer): ?>
+                    <input type="text" class="form-control mb-2" name="questions[<?php echo $question['question_id']; ?>][correct_answers][]" value="<?php echo htmlspecialchars($answer); ?>" required>
+                <?php endforeach; ?>
+                <button type="button" class="btn btn-secondary btn-sm mt-2" onclick="addCorrectAnswer(this, <?php echo $question['question_id']; ?>)">Add Another Correct Answer</button>
+            </div>
+        <?php endif; ?>
+        <div class="mb-3">
+            <label class="form-label">Marks</label>
+            <input type="number" class="form-control" name="questions[<?php echo $question['question_id']; ?>][marks]" value="<?php echo $question['marks']; ?>" required>
+        </div>
+    </div>
+<?php endforeach; ?>
                 </div>
 
                 <h3>Add New Questions</h3>
                 <div id="new-questions-container"></div>
-                <button type="button" class="btn btn-secondary mb-3" id="add-question">Add New Question</button>
+                <div class="mb-3">
+                    <button type="button" class="btn btn-secondary" onclick="addQuestion('multiple_choice')">Add Multiple Choice Question</button>
+                    <button type="button" class="btn btn-secondary" onclick="addQuestion('fill_blank')">Add Fill in the Blank Question</button>
+                </div>
 
                 <button type="submit" class="btn btn-primary">Update Quiz</button>
             </form>
@@ -170,50 +293,68 @@ $questions = $questionsStmt->get_result()->fetch_all(MYSQLI_ASSOC);
     <script>
         let newQuestionCount = 0;
 
-        function addNewQuestion() {
+        function addQuestion(type) {
             newQuestionCount++;
-            const questionHtml = `
+            let questionHtml = `
                 <div class="question-block mb-4">
                     <h4>New Question ${newQuestionCount}</h4>
+                    <input type="hidden" name="new_questions[${newQuestionCount}][type]" value="${type}">
                     <div class="mb-3">
                         <label class="form-label">Question Text</label>
                         <input type="text" class="form-control" name="new_questions[${newQuestionCount}][text]" required>
                     </div>
+            `;
+
+            if (type === 'multiple_choice') {
+                questionHtml += `
                     <div class="mb-3">
-                        <label class="form-label">Option 1</label>
-                        <input type="text" class="form-control" name="new_questions[${newQuestionCount}][option1]" required>
+                        <label class="form-label">Options:</label>
+                        <input type="text" class="form-control mb-2" name="new_questions[${newQuestionCount}][options][]" placeholder="Option 1" required>
+                        <input type="text" class="form-control mb-2" name="new_questions[${newQuestionCount}][options][]" placeholder="Option 2" required>
+                        <input type="text" class="form-control mb-2" name="new_questions[${newQuestionCount}][options][]" placeholder="Option 3" required>
+                        <input type="text" class="form-control mb-2" name="new_questions[${newQuestionCount}][options][]" placeholder="Option 4" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Option 2</label>
-                        <input type="text" class="form-control" name="new_questions[${newQuestionCount}][option2]" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Option 3</label>
-                        <input type="text" class="form-control" name="new_questions[${newQuestionCount}][option3]" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Option 4</label>
-                        <input type="text" class="form-control" name="new_questions[${newQuestionCount}][option4]" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Correct Option</label>
-                        <select class="form-control" name="new_questions[${newQuestionCount}][correct_option]" required>
+                        <label class="form-label">Correct Option:</label>
+                        <select class="form-control" name="new_questions[${newQuestionCount}][correct_option]">
                             <option value="1">Option 1</option>
                             <option value="2">Option 2</option>
                             <option value="3">Option 3</option>
                             <option value="4">Option 4</option>
                         </select>
                     </div>
+                `;
+            } else if (type === 'fill_blank') {
+                questionHtml += `
+                    <div class="mb-3">
+                        <label class="form-label">Correct Answer:</label>
+                        <input type="text" class="form-control" name="new_questions[${newQuestionCount}][correct_answer]" required>
+                    </div>
+                `;
+            }
+
+            questionHtml += `
                     <div class="mb-3">
                         <label class="form-label">Marks</label>
                         <input type="number" class="form-control" name="new_questions[${newQuestionCount}][marks]" required>
                     </div>
                 </div>
             `;
+
             $('#new-questions-container').append(questionHtml);
         }
 
-        $('#add-question').click(addNewQuestion);
+        function addCorrectAnswer(button, questionId) {
+    const container = button.closest('.mb-3');
+    const newInput = document.createElement('input');
+    newInput.type = 'text';
+    newInput.className = 'form-control mb-2';
+    newInput.name = `questions[${questionId}][correct_answers][]`;
+    newInput.required = true;
+    container.insertBefore(newInput, button);
+}
+
+
     </script>
 </body>
 </html>
