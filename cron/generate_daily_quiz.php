@@ -5,7 +5,7 @@
 
 $key = $_GET['key'];
 // Load the quiz generation script
-$response = file_get_contents('https://admin.magicofskills.com/controller/generateQuiz.php?date='.(date('Y-m-d', strtotime('+6 days'))).'&gemini_key='.$key);
+$response = file_get_contents('https://admin.magicofskills.com/controller/generateQuiz.php?date='.(date('Y-m-d', strtotime('+7 days'))).'&gemini_key='.$key);
 
 // Log the response
 $log_file = __DIR__ . '/quiz_generation.log';
