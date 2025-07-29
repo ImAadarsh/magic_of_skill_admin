@@ -82,7 +82,8 @@ $prompt .= "1. Generate exactly 10 multiple choice questions\n";
 $prompt .= "2. Each question must have exactly 4 options\n";
 $prompt .= "3. One option must be clearly correct\n";
 $prompt .= "4. Mix up the position of correct answers\n";
-$prompt .= "5. Questions should be challenging but appropriate for 10-12th class students\n\n";
+$prompt .= "5. Atleast add 1 question of latest recent event/tech/new/info/news/updates \n";
+$prompt .= "6. Questions should be challenging but appropriate for 10-12th class students\n\n";
 
 $prompt .= "FORMAT:\n";
 $prompt .= "Return a JSON array of questions. Each question should have:\n";
