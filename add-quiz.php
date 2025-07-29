@@ -28,7 +28,7 @@ include "include/connect.php";
     <div class="dashboard-main-body">
       <div class="card basic-data-table radius-12 overflow-hidden">
         <div class="card-body p-24">
-          <h2 class="mb-4">Add New Quiz</h2>
+          <h2 class="mb-4">Add New Quiz | New Questions</h2>
           
           <form id="addQuizForm">
             <input value="<?php echo $_SESSION['token'] ?>" hidden name="token">
