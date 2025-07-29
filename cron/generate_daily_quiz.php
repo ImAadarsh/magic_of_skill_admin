@@ -5,7 +5,7 @@ ini_set('display_errors', 1);
 
 $key = $_GET['key'];
 // Load the quiz generation script
-$response = file_get_contents('https://admin.ipnacademy.in/controller/generateQuiz.php?date='.(date('Y-m-d', strtotime('+4 days'))).'&gemini_key='.$key);
+$response = file_get_contents('https://admin.magicofskills.in/controller/generateQuiz.php?date='.(date('Y-m-d', strtotime('+4 days'))).'&gemini_key='.$key);
 
 // Log the response
 $log_file = __DIR__ . '/quiz_generation.log';
