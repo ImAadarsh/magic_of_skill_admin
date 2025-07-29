@@ -1,0 +1,10 @@
+[2025-07-29 16:11:05] Starting daily comprehensive quiz generation
+[2025-07-29 16:11:05] Error generating quiz: Error making API call: Could not resolve host: controller
+[2025-07-29 16:11:33] Starting daily comprehensive quiz generation
+[2025-07-29 16:11:33] Error generating quiz: Invalid JSON response: Syntax error
+[2025-07-29 21:42:31] Starting daily comprehensive quiz generation
+[2025-07-29 21:42:31] Error generating quiz: Invalid JSON response: Syntax error
+[2025-07-29 21:42:49] Starting daily comprehensive quiz generation
+[2025-07-29 21:42:50] Failed to generate quiz: Date is required
+[2025-07-29 21:43:19] Starting daily comprehensive quiz generation
+[2025-07-29 21:43:19] Failed to generate quiz: Date is required
