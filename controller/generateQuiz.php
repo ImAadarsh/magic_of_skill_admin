@@ -1,7 +1,29 @@
 <?php
-// error_reporting(E_ALL);
-// ini_set('display_errors', 1);
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Start session if not already started
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
 include('../include/connect.php');
+
+// Check database connection
+if (!$connect) {
+    echo json_encode(['status' => false, 'message' => 'Database connection failed']);
+    exit;
+}
+
+// Set connection timeout
+mysqli_options($connect, MYSQLI_OPT_CONNECT_TIMEOUT, 60);
+mysqli_options($connect, MYSQLI_OPT_READ_TIMEOUT, 60);
+
+// Store connection details for reconnection
+$host = "82.180.142.204";
+$user = "u954141192_mos";
+$password = "Mos@2024";
+$dbname = "u954141192_mos";
 
 // Topics array
 $topics = [
@@ -54,9 +76,20 @@ $topics = [
 // Get the date parameter
 $quiz_date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
 
+// Simple test endpoint
+if (isset($_GET['test'])) {
+    echo json_encode(['status' => true, 'message' => 'Script is working', 'date' => $quiz_date]);
+    exit;
+}
+
 // Check if quiz already exists for this date
 $check_query = "SELECT quiz_id FROM quizzes WHERE DATE(creation_date) = '$quiz_date'";
 $check_result = mysqli_query($connect, $check_query);
+
+if (!$check_result) {
+    echo json_encode(['status' => false, 'message' => 'Database query failed: ' . mysqli_error($connect)]);
+    exit;
+}
 
 if (mysqli_num_rows($check_result) > 0) {
     echo json_encode(['status' => false, 'message' => 'Quiz already exists for this date']);
@@ -64,7 +97,13 @@ if (mysqli_num_rows($check_result) > 0) {
 }
 
 // Gemini API key
-$GEMINI_API_KEY = isset($_GET['gemini_key']) ? $_GET['gemini_key'] : "KEY_NOT_FOUND"; // Replace with your actual API key
+$GEMINI_API_KEY = isset($_GET['gemini_key']) ? $_GET['gemini_key'] : "AIzaSyArJ_NZJWUbhNe6r7L_DwXlTyXT-5kYJYs";
+
+// Validate API key
+if (empty($GEMINI_API_KEY) || $GEMINI_API_KEY === "KEY_NOT_FOUND") {
+    echo json_encode(['status' => false, 'message' => 'Gemini API key is required']);
+    exit;
+}
 
 // Create prompt for AI
 $prompt = "Generate 10 multiple choice questions for 10-12th class students covering the following topics:\n\n";
@@ -122,8 +161,15 @@ try {
     // Close cURL session
     curl_close($ch);
     
+    // Log the raw response for debugging
+    error_log("Gemini API Response: " . $response);
+    
     // Decode the response
     $responseData = json_decode($response, true);
+    
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        throw new Exception('Invalid JSON response from Gemini API: ' . json_last_error_msg());
+    }
     
     if (isset($responseData['candidates'][0]['content']['parts'][0]['text'])) {
         $ai_json = $responseData['candidates'][0]['content']['parts'][0]['text'];
@@ -132,10 +178,22 @@ try {
         $ai_json = preg_replace('/^```(json)?|```$/m', '', $ai_json);
         $ai_json = trim($ai_json);
         
+        // Log the cleaned AI response for debugging
+        error_log("Cleaned AI Response: " . $ai_json);
+        
         // Parse questions
         $questions = json_decode($ai_json, true);
         if (!is_array($questions)) {
-            throw new Exception('AI did not return valid JSON.');
+            throw new Exception('AI did not return valid JSON. Raw response: ' . substr($ai_json, 0, 500));
+        }
+
+        // Check and reconnect if needed
+        if (!mysqli_ping($connect)) {
+            mysqli_close($connect);
+            $connect = mysqli_connect($host, $user, $password, $dbname);
+            if (!$connect) {
+                throw new Exception('Database reconnection failed');
+            }
         }
 
         // Start transaction
@@ -158,6 +216,11 @@ try {
                 !is_array($q['options']) || count($q['options']) !== 4 ||
                 !is_numeric($q['correct_option']) || $q['correct_option'] < 1 || $q['correct_option'] > 4) {
                 continue;
+            }
+
+            // Check connection before each insert
+            if (!mysqli_ping($connect)) {
+                throw new Exception("Database connection lost during question insertion");
             }
 
             $question_text = mysqli_real_escape_string($connect, $q['question']);

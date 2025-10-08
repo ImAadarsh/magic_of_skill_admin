@@ -1,4 +1,10 @@
 <?php
+// Prevent multiple inclusions
+if (defined('CONNECT_INCLUDED')) {
+    return;
+}
+define('CONNECT_INCLUDED', true);
+
 $host = "82.180.142.204";
 $user = "u954141192_mos";
 $password = "Mos@2024";
@@ -98,7 +104,7 @@ function callAPI1($method, $urlpoint, $data, $token){
  }
 
  // varibale
- if($_SESSION['usertype']=='admin'){
+ if(isset($_SESSION['usertype']) && $_SESSION['usertype']=='admin'){
     $name = $_SESSION['name'];
     $email = $_SESSION['email'];
     $usertype = $_SESSION['usertype'];
