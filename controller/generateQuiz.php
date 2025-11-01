@@ -15,10 +15,6 @@ if (!$connect) {
     exit;
 }
 
-// Set connection timeout
-mysqli_options($connect, MYSQLI_OPT_CONNECT_TIMEOUT, 60);
-mysqli_options($connect, MYSQLI_OPT_READ_TIMEOUT, 60);
-
 // Store connection details for reconnection
 $host = "82.180.142.204";
 $user = "u954141192_mos";
@@ -149,6 +145,8 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
     'Content-Type: application/json'
 ]);
+curl_setopt($ch, CURLOPT_TIMEOUT, 120); // 2 minute timeout for API call
+curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30); // 30 second connection timeout
 
 try {
     // Execute cURL request
@@ -255,9 +253,9 @@ try {
     }
 
 } catch (Exception $e) {
-    // Rollback transaction if active
-    if (mysqli_get_connection_stats($connect)) {
-        mysqli_rollback($connect);
+    // Rollback transaction if active and connection is valid
+    if (isset($connect) && $connect && mysqli_ping($connect)) {
+        @mysqli_rollback($connect);
     }
     
     echo json_encode([

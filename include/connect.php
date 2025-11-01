@@ -9,7 +9,18 @@ $host = "82.180.142.204";
 $user = "u954141192_mos";
 $password = "Mos@2024";
 $dbname = "u954141192_mos";
-$connect = mysqli_connect($host,$user,$password,$dbname);
+
+// Set connection options before connecting
+$connect = mysqli_init();
+mysqli_options($connect, MYSQLI_OPT_CONNECT_TIMEOUT, 60);
+mysqli_options($connect, MYSQLI_OPT_READ_TIMEOUT, 300);
+@mysqli_real_connect($connect, $host, $user, $password, $dbname);
+
+// Set session timeouts to prevent "MySQL server has gone away" errors
+if ($connect && mysqli_ping($connect)) {
+    @mysqli_query($connect, "SET SESSION wait_timeout = 600");
+    @mysqli_query($connect, "SET SESSION interactive_timeout = 600");
+}
 $uri = 'https://api.magicofskills.com/storage/app/';
 $apiEndpoint = 'https://api.magicofskills.com/public/api/';
 date_default_timezone_set('Asia/Kolkata');
