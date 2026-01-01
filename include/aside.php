@@ -185,69 +185,6 @@
       </li>
     </ul>
   </li>
-
-  <li class="sidebar-menu-group-title">Pages</li>
-
-  <li>
-    <a href="gallery.php">
-      <iconify-icon icon="solar:gallery-wide-linear" class="menu-icon"></iconify-icon>
-      <span>Gallery</span> 
-    </a>
-  </li>
-  <li>
-    <a href="pricing.php">
-      <iconify-icon icon="hugeicons:money-send-square" class="menu-icon"></iconify-icon>
-      <span>Pricing</span> 
-    </a>
-  </li>
-  <li>
-    <a href="faq.php">
-      <iconify-icon icon="mage:message-question-mark-round" class="menu-icon"></iconify-icon>
-      <span>FAQs.</span> 
-    </a>
-  </li>
-  <li>
-    <a href="error.php">
-      <iconify-icon icon="streamline:straight-face" class="menu-icon"></iconify-icon>
-      <span>404</span> 
-    </a>
-  </li>
-  <li>
-    <a href="terms-condition.php">
-      <iconify-icon icon="octicon:info-24" class="menu-icon"></iconify-icon>
-      <span>Terms & Conditions</span> 
-    </a>
-  </li>
-  
-  <li class="dropdown">
-    <a href="javascript:void(0)">
-      <iconify-icon icon="icon-park-outline:setting-two" class="menu-icon"></iconify-icon>
-      <span>Settings</span> 
-    </a>
-    <ul class="sidebar-submenu">
-      <li>
-        <a href="company.php"><i class="ri-circle-fill circle-icon text-primary-600 w-auto"></i> Company</a>
-      </li>
-      <li>
-        <a href="notification.php"><i class="ri-circle-fill circle-icon text-warning-main w-auto"></i> Notification</a>
-      </li>
-      <li>
-        <a href="notification-alert.php"><i class="ri-circle-fill circle-icon text-info-main w-auto"></i> Notification Alert</a>
-      </li>
-      <li>
-        <a href="theme.php"><i class="ri-circle-fill circle-icon text-danger-main w-auto"></i> Theme</a>
-      </li>
-      <li>
-        <a href="currencies.php"><i class="ri-circle-fill circle-icon text-danger-main w-auto"></i> Currencies</a>
-      </li>
-      <li>
-        <a href="language.php"><i class="ri-circle-fill circle-icon text-danger-main w-auto"></i> Languages</a>
-      </li>
-      <li>
-        <a href="payment-gateway.php"><i class="ri-circle-fill circle-icon text-danger-main w-auto"></i> Payment Gateway</a>
-      </li>
-    </ul>
-  </li>
 <!-- <li>
   <a href="workshop-manual.php">
     <i class="fas fa-heart menu-icon"></i>
