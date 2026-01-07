@@ -11,39 +11,49 @@
 
 namespace Symfony\Component\Mailer\Test;
 
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\Mailer\Exception\IncompleteDsnException;
 use Symfony\Component\Mailer\Exception\UnsupportedSchemeException;
 use Symfony\Component\Mailer\Transport\Dsn;
 use Symfony\Component\Mailer\Transport\TransportFactoryInterface;
 use Symfony\Component\Mailer\Transport\TransportInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-abstract class AbstractTransportFactoryTestCase extends TestCase
+/**
+ * A test case to ease testing Transport Factory.
+ *
+ * @author Konstantin Myakshin <molodchick@gmail.com>
+ */
+abstract class TransportFactoryTestCase extends TestCase
 {
     protected const USER = 'u$er';
     protected const PASSWORD = 'pa$s';
 
+    protected $dispatcher;
+    protected $client;
+    protected $logger;
+
     abstract public function getFactory(): TransportFactoryInterface;
 
-    /**
-     * @psalm-return iterable<array{0: Dsn, 1: bool}>
-     */
-    abstract public static function supportsProvider(): iterable;
+    abstract public function supportsProvider(): iterable;
 
-    /**
-     * @psalm-return iterable<array{0: Dsn, 1: TransportInterface}>
-     */
-    abstract public static function createProvider(): iterable;
+    abstract public function createProvider(): iterable;
 
-    /**
-     * @psalm-return iterable<array{0: Dsn, 1?: string|null}>
-     */
-    abstract public static function unsupportedSchemeProvider(): iterable;
+    public function unsupportedSchemeProvider(): iterable
+    {
+        return [];
+    }
+
+    public function incompleteDsnProvider(): iterable
+    {
+        return [];
+    }
 
     /**
      * @dataProvider supportsProvider
      */
-    #[DataProvider('supportsProvider')]
     public function testSupports(Dsn $dsn, bool $supports)
     {
         $factory = $this->getFactory();
@@ -54,7 +64,6 @@ abstract class AbstractTransportFactoryTestCase extends TestCase
     /**
      * @dataProvider createProvider
      */
-    #[DataProvider('createProvider')]
     public function testCreate(Dsn $dsn, TransportInterface $transport)
     {
         $factory = $this->getFactory();
@@ -68,8 +77,7 @@ abstract class AbstractTransportFactoryTestCase extends TestCase
     /**
      * @dataProvider unsupportedSchemeProvider
      */
-    #[DataProvider('unsupportedSchemeProvider')]
-    public function testUnsupportedSchemeException(Dsn $dsn, ?string $message = null)
+    public function testUnsupportedSchemeException(Dsn $dsn, string $message = null)
     {
         $factory = $this->getFactory();
 
@@ -79,5 +87,31 @@ abstract class AbstractTransportFactoryTestCase extends TestCase
         }
 
         $factory->create($dsn);
+    }
+
+    /**
+     * @dataProvider incompleteDsnProvider
+     */
+    public function testIncompleteDsnException(Dsn $dsn)
+    {
+        $factory = $this->getFactory();
+
+        $this->expectException(IncompleteDsnException::class);
+        $factory->create($dsn);
+    }
+
+    protected function getDispatcher(): EventDispatcherInterface
+    {
+        return $this->dispatcher ?? $this->dispatcher = $this->createMock(EventDispatcherInterface::class);
+    }
+
+    protected function getClient(): HttpClientInterface
+    {
+        return $this->client ?? $this->client = $this->createMock(HttpClientInterface::class);
+    }
+
+    protected function getLogger(): LoggerInterface
+    {
+        return $this->logger ?? $this->logger = $this->createMock(LoggerInterface::class);
     }
 }

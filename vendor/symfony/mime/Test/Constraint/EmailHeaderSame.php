@@ -17,23 +17,31 @@ use Symfony\Component\Mime\RawMessage;
 
 final class EmailHeaderSame extends Constraint
 {
-    public function __construct(
-        private string $headerName,
-        private string $expectedValue,
-    ) {
+    private string $headerName;
+    private string $expectedValue;
+
+    public function __construct(string $headerName, string $expectedValue)
+    {
+        $this->headerName = $headerName;
+        $this->expectedValue = $expectedValue;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function toString(): string
     {
-        return \sprintf('has header "%s" with value "%s"', $this->headerName, $this->expectedValue);
+        return sprintf('has header "%s" with value "%s"', $this->headerName, $this->expectedValue);
     }
 
     /**
      * @param RawMessage $message
+     *
+     * {@inheritdoc}
      */
     protected function matches($message): bool
     {
-        if (RawMessage::class === $message::class) {
+        if (RawMessage::class === \get_class($message)) {
             throw new \LogicException('Unable to test a message header on a RawMessage instance.');
         }
 
@@ -42,10 +50,12 @@ final class EmailHeaderSame extends Constraint
 
     /**
      * @param RawMessage $message
+     *
+     * {@inheritdoc}
      */
     protected function failureDescription($message): string
     {
-        return \sprintf('the Email %s (value is %s)', $this->toString(), $this->getHeaderValue($message) ?? 'null');
+        return sprintf('the Email %s (value is %s)', $this->toString(), $this->getHeaderValue($message) ?? 'null');
     }
 
     private function getHeaderValue($message): ?string

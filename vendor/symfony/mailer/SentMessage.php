@@ -19,21 +19,21 @@ use Symfony\Component\Mime\RawMessage;
  */
 class SentMessage
 {
-    private RawMessage $original;
-    private RawMessage $raw;
+    private $original;
+    private $raw;
+    private $envelope;
     private string $messageId;
     private string $debug = '';
 
     /**
      * @internal
      */
-    public function __construct(
-        RawMessage $message,
-        private Envelope $envelope,
-    ) {
+    public function __construct(RawMessage $message, Envelope $envelope)
+    {
         $message->ensureValidity();
 
         $this->original = $message;
+        $this->envelope = $envelope;
 
         if ($message instanceof Message) {
             $message = clone $message;

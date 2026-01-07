@@ -24,22 +24,17 @@ use Symfony\Component\Mailer\Exception\TransportException;
  */
 abstract class AbstractStream
 {
-    /** @var resource|null */
     protected $stream;
-    /** @var resource|null */
     protected $in;
-    /** @var resource|null */
     protected $out;
-    protected $err;
 
     private string $debug = '';
 
     public function write(string $bytes, bool $debug = true): void
     {
         if ($debug) {
-            $timestamp = (new \DateTimeImmutable())->format('Y-m-d\TH:i:s.up');
             foreach (explode("\n", trim($bytes)) as $line) {
-                $this->debug .= \sprintf("[%s] > %s\n", $timestamp, $line);
+                $this->debug .= sprintf("> %s\n", $line);
             }
         }
 
@@ -70,7 +65,7 @@ abstract class AbstractStream
 
     public function terminate(): void
     {
-        $this->stream = $this->err = $this->out = $this->in = null;
+        $this->stream = $this->out = $this->in = null;
     }
 
     public function readLine(): string
@@ -79,20 +74,18 @@ abstract class AbstractStream
             return '';
         }
 
-        $line = @fgets($this->out);
+        $line = fgets($this->out);
         if ('' === $line || false === $line) {
-            if (stream_get_meta_data($this->out)['timed_out']) {
-                throw new TransportException(\sprintf('Connection to "%s" timed out.', $this->getReadConnectionDescription()));
+            $metas = stream_get_meta_data($this->out);
+            if ($metas['timed_out']) {
+                throw new TransportException(sprintf('Connection to "%s" timed out.', $this->getReadConnectionDescription()));
             }
-            if (feof($this->out)) { // don't use "eof" metadata, it's not accurate on Windows
-                throw new TransportException(\sprintf('Connection to "%s" has been closed unexpectedly.', $this->getReadConnectionDescription()));
-            }
-            if (false === $line) {
-                throw new TransportException(\sprintf('Unable to read from connection to "%s": ', $this->getReadConnectionDescription().error_get_last()['message'] ?? ''));
+            if ($metas['eof']) {
+                throw new TransportException(sprintf('Connection to "%s" has been closed unexpectedly.', $this->getReadConnectionDescription()));
             }
         }
 
-        $this->debug .= \sprintf('[%s] < %s', (new \DateTimeImmutable())->format('Y-m-d\TH:i:s.up'), $line);
+        $this->debug .= sprintf('< %s', $line);
 
         return $line;
     }

@@ -17,22 +17,31 @@ use Symfony\Component\Mime\RawMessage;
 
 final class EmailAttachmentCount extends Constraint
 {
-    public function __construct(
-        private int $expectedValue,
-    ) {
+    private int $expectedValue;
+    private ?string $transport;
+
+    public function __construct(int $expectedValue, string $transport = null)
+    {
+        $this->expectedValue = $expectedValue;
+        $this->transport = $transport;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function toString(): string
     {
-        return \sprintf('has sent "%d" attachment(s)', $this->expectedValue);
+        return sprintf('has sent "%d" attachment(s)', $this->expectedValue);
     }
 
     /**
      * @param RawMessage $message
+     *
+     * {@inheritdoc}
      */
     protected function matches($message): bool
     {
-        if (RawMessage::class === $message::class || Message::class === $message::class) {
+        if (RawMessage::class === \get_class($message) || Message::class === \get_class($message)) {
             throw new \LogicException('Unable to test a message attachment on a RawMessage or Message instance.');
         }
 
@@ -41,6 +50,8 @@ final class EmailAttachmentCount extends Constraint
 
     /**
      * @param RawMessage $message
+     *
+     * {@inheritdoc}
      */
     protected function failureDescription($message): string
     {

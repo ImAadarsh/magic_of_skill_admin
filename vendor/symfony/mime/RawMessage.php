@@ -18,21 +18,11 @@ use Symfony\Component\Mime\Exception\LogicException;
  */
 class RawMessage
 {
-    private bool $isGeneratorClosed;
+    private $message;
 
-    /**
-     * @param iterable<string>|string|resource $message
-     */
-    public function __construct(
-        private $message,
-    ) {
-    }
-
-    public function __destruct()
+    public function __construct(iterable|string $message)
     {
-        if (\is_resource($this->message)) {
-            fclose($this->message);
-        }
+        $this->message = $message;
     }
 
     public function toString(): string
@@ -40,61 +30,33 @@ class RawMessage
         if (\is_string($this->message)) {
             return $this->message;
         }
-
-        if (\is_resource($this->message)) {
-            return stream_get_contents($this->message, -1, 0);
+        if ($this->message instanceof \Traversable) {
+            $this->message = iterator_to_array($this->message, false);
         }
 
-        $message = '';
-        foreach ($this->message as $chunk) {
-            $message .= $chunk;
-        }
-
-        return $this->message = $message;
+        return $this->message = implode('', $this->message);
     }
 
     public function toIterable(): iterable
     {
-        if ($this->isGeneratorClosed ?? false) {
-            throw new LogicException('Unable to send the email as its generator is already closed.');
-        }
-
         if (\is_string($this->message)) {
             yield $this->message;
 
             return;
         }
 
-        if (\is_resource($this->message)) {
-            rewind($this->message);
-            while ($line = fgets($this->message)) {
-                yield $line;
-            }
-
-            return;
-        }
-
-        if ($this->message instanceof \Generator) {
-            $message = fopen('php://temp', 'w+');
-            foreach ($this->message as $chunk) {
-                fwrite($message, $chunk);
-                yield $chunk;
-            }
-            $this->isGeneratorClosed = !$this->message->valid();
-            $this->message = $message;
-
-            return;
-        }
-
+        $message = '';
         foreach ($this->message as $chunk) {
+            $message .= $chunk;
             yield $chunk;
         }
+        $this->message = $message;
     }
 
     /**
      * @throws LogicException if the message is not valid
      */
-    public function ensureValidity(): void
+    public function ensureValidity()
     {
     }
 

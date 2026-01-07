@@ -5,7 +5,8 @@
     },
     "config": {
         "platform": {
-            "php": "8.1"
-        }
+            "php": "8.0.28"
+        },
+        "platform-check": false
     }
 }

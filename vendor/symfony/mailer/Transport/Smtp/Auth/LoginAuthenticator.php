@@ -26,12 +26,14 @@ class LoginAuthenticator implements AuthenticatorInterface
     }
 
     /**
+     * {@inheritdoc}
+     *
      * @see https://www.ietf.org/rfc/rfc4954.txt
      */
     public function authenticate(EsmtpTransport $client): void
     {
         $client->executeCommand("AUTH LOGIN\r\n", [334]);
-        $client->executeCommand(\sprintf("%s\r\n", base64_encode($client->getUsername())), [334]);
-        $client->executeCommand(\sprintf("%s\r\n", base64_encode($client->getPassword())), [235]);
+        $client->executeCommand(sprintf("%s\r\n", base64_encode($client->getUsername())), [334]);
+        $client->executeCommand(sprintf("%s\r\n", base64_encode($client->getPassword())), [235]);
     }
 }

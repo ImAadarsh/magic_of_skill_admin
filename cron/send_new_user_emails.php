@@ -8,10 +8,10 @@ ini_set('display_errors', 1);
 // Credentials
 $mail_host = 'smtp.gmail.com';
 $mail_port = 465;
-$mail_username = 'ipnacademy2023@gmail.com';
+$mail_username = 'magicofskills.com@gmail.com';
 // Use provided password or get from URL parameter
-$mail_password = $_GET['password'];
-$admin_email = 'digital.endeavour.in@gmail.com';
+$mail_password = isset($_GET['password']) ? trim($_GET['password']) : 'lkqnyvovfdkcweak';
+$admin_email = 'magicofskills@eduace.in';
 
 // Check for PHPMailer
 use PHPMailer\PHPMailer\PHPMailer;
@@ -67,7 +67,8 @@ if ($result->num_rows > 0) {
 
     try {
         // Server settings
-        //$mail->SMTPDebug = SMTP::DEBUG_SERVER; 
+        // $mail->SMTPDebug = SMTP::DEBUG_SERVER; 
+        // $mail->Debugoutput = 'html';
         $mail->isSMTP();
         $mail->Host       = $mail_host;
         $mail->SMTPAuth   = true;
