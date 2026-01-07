@@ -14,7 +14,17 @@ $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
 $offset = ($page - 1) * $recordsPerPage;
 
 // Build the SQL query
-$sql = "SELECT id, email, first_name, last_name, school, icon, city, country_code, mobile, user_type, created_at FROM users";
+$sql = "SELECT id, email, first_name, last_name, school, icon, city, country_code, mobile, user_type, grade, created_at FROM users";
+
+// Fetch distinct grades for filter
+$gradesSql = "SELECT DISTINCT grade FROM users WHERE grade IS NOT NULL AND grade != '' ORDER BY grade";
+$gradesResult = $connect->query($gradesSql);
+$grades = [];
+if ($gradesResult) {
+    while ($row = $gradesResult->fetch_assoc()) {
+        $grades[] = $row['grade'];
+    }
+}
 
 // Apply filters
 $whereClause = [];
@@ -26,6 +36,20 @@ if (isset($_GET['user_type']) && $_GET['user_type'] != '') {
     $whereClause[] = "user_type = ?";
     $params[] = $_GET['user_type'];
     $types .= "s";
+    $types .= "s";
+}
+
+// Grade filter
+if (isset($_GET['grade']) && $_GET['grade'] != '') {
+    $whereClause[] = "grade = ?";
+    $params[] = $_GET['grade'];
+    $types .= "s";
+}
+
+// Hide Incomplete Users filter
+if (isset($_GET['hide_incomplete']) && $_GET['hide_incomplete'] == '1') {
+    $whereClause[] = "(email IS NOT NULL AND email != '' AND first_name IS NOT NULL AND first_name != '')";
+    // No params needed for this static condition
 }
 
 // Search filter
@@ -100,6 +124,9 @@ if (isset($_GET['city']) && $_GET['city'] != '') {
 if (!empty($whereClause)) {
     $sql .= " WHERE " . implode(" AND ", $whereClause);
 }
+
+// Order by latest execution
+$sql .= " ORDER BY created_at DESC";
 
 // Add pagination
 $sql .= " LIMIT ? OFFSET ?";
@@ -236,6 +263,20 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
                                     <option value="active" <?php echo isset($_GET['status']) && $_GET['status'] == 'active' ? 'selected' : ''; ?>>Active</option>
                                     <option value="inactive" <?php echo isset($_GET['status']) && $_GET['status'] == 'inactive' ? 'selected' : ''; ?>>Inactive</option>
                                 </select>
+                                <select name="grade" class="form-select form-select-sm w-auto ps-12 py-6 radius-12 h-40-px" onchange="this.form.submit()">
+                                    <option value="">All Grades</option>
+                                    <?php foreach ($grades as $grade): ?>
+                                        <option value="<?php echo htmlspecialchars($grade); ?>" <?php echo isset($_GET['grade']) && $_GET['grade'] == $grade ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($grade); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <div class="form-check d-flex align-items-center gap-2 mb-0">
+                                    <input class="form-check-input mt-0" type="checkbox" name="hide_incomplete" value="1" id="hideIncomplete" <?php echo isset($_GET['hide_incomplete']) && $_GET['hide_incomplete'] == '1' ? 'checked' : ''; ?> onchange="this.form.submit()">
+                                    <label class="form-check-label text-secondary-light" for="hideIncomplete">
+                                        Hide Incomplete
+                                    </label>
+                                </div>
                                 <button type="submit" class="btn btn-primary btn-sm">Apply Filters</button>
                             </form>
                         </div>
@@ -252,6 +293,7 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
                                     <th scope="col">Name</th>
                                     <th scope="col">Email</th>
                                     <th scope="col">School</th>
+                                    <th scope="col">Grade</th>
                                     <th scope="col">City</th>
                                     <th scope="col">Country</th>
                                     <th scope="col">Mobile</th>
@@ -274,6 +316,7 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
                                         </td>
                                         <td><span class="text-md mb-0 fw-normal text-secondary-light"><?php echo htmlspecialchars($user['email']); ?></span></td>
                                         <td><?php echo htmlspecialchars($user['school']); ?></td>
+                                        <td><?php echo htmlspecialchars($user['grade'] ?? ''); ?></td>
                                         <td><?php echo htmlspecialchars($user['city']); ?></td>
                                         <td><?php echo htmlspecialchars($user['country_code']); ?></td>
                                         <td><?php echo htmlspecialchars($user['mobile']); ?></td>
@@ -308,7 +351,7 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
                         <ul class="pagination d-flex flex-wrap align-items-center gap-2 justify-content-center">
                             <?php if ($page > 1): ?>
                                 <li class="page-item">
-                                    <a class="page-link bg-neutral-300 text-secondary-light fw-semibold radius-8 border-0 d-flex align-items-center justify-content-center h-32-px w-32-px text-md" href="?page=<?php echo $page - 1; ?>&search=<?php echo urlencode($_GET['search'] ?? ''); ?>&user_type=<?php echo urlencode($_GET['user_type'] ?? ''); ?>&joined=<?php echo urlencode($_GET['joined'] ?? ''); ?>&school=<?php echo urlencode($_GET['school'] ?? ''); ?>&city=<?php echo urlencode($_GET['city'] ?? ''); ?>&status=<?php echo urlencode($_GET['status'] ?? ''); ?>&per_page=<?php echo $recordsPerPage; ?>">
+                                    <a class="page-link bg-neutral-300 text-secondary-light fw-semibold radius-8 border-0 d-flex align-items-center justify-content-center h-32-px w-32-px text-md" href="?page=<?php echo $page - 1; ?>&search=<?php echo urlencode($_GET['search'] ?? ''); ?>&user_type=<?php echo urlencode($_GET['user_type'] ?? ''); ?>&joined=<?php echo urlencode($_GET['joined'] ?? ''); ?>&school=<?php echo urlencode($_GET['school'] ?? ''); ?>&city=<?php echo urlencode($_GET['city'] ?? ''); ?>&status=<?php echo urlencode($_GET['status'] ?? ''); ?>&grade=<?php echo urlencode($_GET['grade'] ?? ''); ?>&hide_incomplete=<?php echo urlencode($_GET['hide_incomplete'] ?? ''); ?>&per_page=<?php echo $recordsPerPage; ?>">
                                         <iconify-icon icon="ep:d-arrow-left"></iconify-icon>
                                     </a>
                                 </li>
@@ -321,7 +364,7 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
                             for ($i = $startPage; $i <= $endPage; $i++):
                             ?>
                                 <li class="page-item">
-                                    <a class="page-link <?php echo $i == $page ? 'bg-primary-600 text-white' : 'bg-neutral-300 text-secondary-light'; ?> fw-semibold radius-8 border-0 d-flex align-items-center justify-content-center h-32-px w-32-px text-md" href="?page=<?php echo $i; ?>&search=<?php echo urlencode($_GET['search'] ?? ''); ?>&user_type=<?php echo urlencode($_GET['user_type'] ?? ''); ?>&joined=<?php echo urlencode($_GET['joined'] ?? ''); ?>&school=<?php echo urlencode($_GET['school'] ?? ''); ?>&city=<?php echo urlencode($_GET['city'] ?? ''); ?>&status=<?php echo urlencode($_GET['status'] ?? ''); ?>&per_page=<?php echo $recordsPerPage; ?>">
+                                    <a class="page-link <?php echo $i == $page ? 'bg-primary-600 text-white' : 'bg-neutral-300 text-secondary-light'; ?> fw-semibold radius-8 border-0 d-flex align-items-center justify-content-center h-32-px w-32-px text-md" href="?page=<?php echo $i; ?>&search=<?php echo urlencode($_GET['search'] ?? ''); ?>&user_type=<?php echo urlencode($_GET['user_type'] ?? ''); ?>&joined=<?php echo urlencode($_GET['joined'] ?? ''); ?>&school=<?php echo urlencode($_GET['school'] ?? ''); ?>&city=<?php echo urlencode($_GET['city'] ?? ''); ?>&status=<?php echo urlencode($_GET['status'] ?? ''); ?>&grade=<?php echo urlencode($_GET['grade'] ?? ''); ?>&hide_incomplete=<?php echo urlencode($_GET['hide_incomplete'] ?? ''); ?>&per_page=<?php echo $recordsPerPage; ?>">
                                         <?php echo $i; ?>
                                     </a>
                                 </li>
@@ -329,7 +372,7 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
 
                             <?php if ($page < $totalPages): ?>
                                 <li class="page-item">
-                                    <a class="page-link bg-neutral-300 text-secondary-light fw-semibold radius-8 border-0 d-flex align-items-center justify-content-center h-32-px w-32-px text-md" href="?page=<?php echo $page + 1; ?>&search=<?php echo urlencode($_GET['search'] ?? ''); ?>&user_type=<?php echo urlencode($_GET['user_type'] ?? ''); ?>&joined=<?php echo urlencode($_GET['joined'] ?? ''); ?>&school=<?php echo urlencode($_GET['school'] ?? ''); ?>&city=<?php echo urlencode($_GET['city'] ?? ''); ?>&status=<?php echo urlencode($_GET['status'] ?? ''); ?>&per_page=<?php echo $recordsPerPage; ?>">
+                                    <a class="page-link bg-neutral-300 text-secondary-light fw-semibold radius-8 border-0 d-flex align-items-center justify-content-center h-32-px w-32-px text-md" href="?page=<?php echo $page + 1; ?>&search=<?php echo urlencode($_GET['search'] ?? ''); ?>&user_type=<?php echo urlencode($_GET['user_type'] ?? ''); ?>&joined=<?php echo urlencode($_GET['joined'] ?? ''); ?>&school=<?php echo urlencode($_GET['school'] ?? ''); ?>&city=<?php echo urlencode($_GET['city'] ?? ''); ?>&status=<?php echo urlencode($_GET['status'] ?? ''); ?>&grade=<?php echo urlencode($_GET['grade'] ?? ''); ?>&hide_incomplete=<?php echo urlencode($_GET['hide_incomplete'] ?? ''); ?>&per_page=<?php echo $recordsPerPage; ?>">
                                         <iconify-icon icon="ep:d-arrow-right"></iconify-icon>
                                     </a>
                                 </li>
