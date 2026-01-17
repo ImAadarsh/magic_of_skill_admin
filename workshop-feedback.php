@@ -301,7 +301,7 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
                                                 <?php echo $offset + $index + 1; ?>
                                             </td>
                                             <td>
-                                                <?php echo date('d M Y, h:i A', strtotime($row['created_at'])); ?>
+                                                <?php echo date('d M Y', strtotime($row['created_at'])); ?>
                                             </td>
                                             <td>
                                                 <span class="text-md mb-0 fw-medium text-secondary-light">
