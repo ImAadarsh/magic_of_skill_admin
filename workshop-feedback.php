@@ -14,12 +14,12 @@ $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
 $offset = ($page - 1) * $recordsPerPage;
 
 // Build the SQL query
-$sql = "SELECT wf.*, w.title as workshop_title 
+$sql = "SELECT wf.*, w.name as workshop_title 
         FROM workshop_feedback wf 
         LEFT JOIN workshops w ON wf.workshop_id = w.id";
 
 // Fetch workshops for filter
-$workshopsSql = "SELECT id, title FROM workshops ORDER BY title";
+$workshopsSql = "SELECT id, name FROM workshops ORDER BY name";
 $workshopsResult = $connect->query($workshopsSql);
 $workshops = [];
 if ($workshopsResult) {
@@ -235,7 +235,7 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
                                     <option value="">All Workshops</option>
                                     <?php foreach ($workshops as $ws): ?>
                                         <option value="<?php echo $ws['id']; ?>" <?php echo isset($_GET['workshop_id']) && $_GET['workshop_id'] == $ws['id'] ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($ws['title']); ?>
+                                            <?php echo htmlspecialchars($ws['name']); ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
