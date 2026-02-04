@@ -17,12 +17,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["csv_file"])) {
 
         while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
             // Name, Grade, Email ID, Contact No., School Name, workshop_id
-            $full_name = trim($data[0]);
-            $grade = mysqli_real_escape_string($connect, $data[1]);
-            $email = mysqli_real_escape_string($connect, $data[2]);
-            $mobile = mysqli_real_escape_string($connect, $data[3]);
-            $school = mysqli_real_escape_string($connect, $data[4]);
-            $workshop_id = mysqli_real_escape_string($connect, $data[5]);
+            $full_name = trim($data[0] ?? '');
+            $grade = mysqli_real_escape_string($connect, trim($data[1] ?? ''));
+            $email = mysqli_real_escape_string($connect, trim($data[2] ?? ''));
+            $mobile = mysqli_real_escape_string($connect, trim($data[3] ?? ''));
+            $school = mysqli_real_escape_string($connect, trim($data[4] ?? ''));
+            $workshop_id = mysqli_real_escape_string($connect, trim($data[5] ?? ''));
 
             // Split name
             $name_parts = explode(" ", $full_name, 2);
@@ -73,12 +73,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["csv_file"])) {
                     }
                 } else {
                     $errMsg = isset($responseArr['message']) ? $responseArr['message'] : "Unknown API error";
+                    if (empty($responseArr) && !empty($apiResponse)) {
+                        $errMsg = "Raw API Response: " . htmlspecialchars($apiResponse);
+                    }
                     $report[] = ["status" => "error", "message" => "Failed to create user $mobile: $errMsg"];
                     continue;
                 }
             }
 
-            // 3. Put entry into payments table
+            // 3. Check for duplicate payment for this workshop
+            $checkPayment = "SELECT id FROM payments WHERE user_id = '$user_id' AND workshop_id = '$workshop_id' LIMIT 1";
+            $paymentResult = mysqli_query($connect, $checkPayment);
+            if ($paymentResult && mysqli_num_rows($paymentResult) > 0) {
+                $report[] = ["status" => "warning", "message" => "Payment already exists for $mobile in workshop $workshop_id. Skipped."];
+                continue;
+            }
+
+            // 4. Put entry into payments table
             $payment_id = $ref_prefix . uniqid();
             $order_id = "B2B_" . uniqid() . "2";
             $verify_token = bin2hex(random_bytes(8));
@@ -198,6 +209,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["csv_file"])) {
                                                                 <td>
                                                                     <?php if ($r['status'] == 'success'): ?>
                                                                         <span class="badge bg-success">Success</span>
+                                                                    <?php elseif ($r['status'] == 'warning'): ?>
+                                                                        <span class="badge bg-warning">Skipped</span>
                                                                     <?php else: ?>
                                                                         <span class="badge bg-danger">Error</span>
                                                                     <?php endif; ?>
