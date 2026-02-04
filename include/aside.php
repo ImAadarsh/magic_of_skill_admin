@@ -30,6 +30,10 @@
             <a href="add-user.php"><i class="ri-circle-fill circle-icon text-info-main w-auto"></i> Add Admin</a>
           </li>
           <li>
+            <a href="b2b-import.php"><i class="ri-circle-fill circle-icon text-success-main w-auto"></i> B2B CSV
+              Import</a>
+          </li>
+          <li>
             <a href="view-profile.php"><i class="ri-circle-fill circle-icon text-danger-main w-auto"></i> Your
               Profile</a>
           </li>
