@@ -2,92 +2,19 @@
 include "include/session.php";
 include "include/connect.php";
 
-// Handle File Upload via AJAX — sends to backend API
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && $_GET['action'] === 'upload') {
-    header('Content-Type: application/json');
-    try {
-        if (!isset($_FILES['hero_image']) || $_FILES['hero_image']['error'] !== UPLOAD_ERR_OK) {
-            $errorCode = $_FILES['hero_image']['error'] ?? UPLOAD_ERR_NO_FILE;
-            throw new Exception("File upload failed with error code: " . $errorCode);
-        }
-
-        $fileTmpPath  = $_FILES['hero_image']['tmp_name'];
-        $fileOrigName = $_FILES['hero_image']['name'];
-        $fileSize     = $_FILES['hero_image']['size'];
-        $fileMime     = mime_content_type($fileTmpPath);
-
-        // Validate size (max 5MB)
-        if ($fileSize > 5 * 1024 * 1024) {
-            throw new Exception("File size exceeds limit of 5MB.");
-        }
-
-        // Validate image
-        $check = getimagesize($fileTmpPath);
-        if ($check === false) {
-            throw new Exception("Uploaded file is not a valid image.");
-        }
-
-        $allowedMimeTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
-        if (!in_array($check['mime'], $allowedMimeTypes)) {
-            throw new Exception("Invalid format. Allowed: PNG, JPEG, JPG, GIF, WEBP.");
-        }
-
-        // Build multipart POST to backend API
-        $token = $_SESSION['token'] ?? '';
-        $curlFile = new CURLFile($fileTmpPath, $fileMime, $fileOrigName);
-
-        $postData = [
-            'token'      => $token,
-            'hero_image' => $curlFile,
-        ];
-
-        $ch = curl_init($apiEndpoint . 'uploadHeroImage');
-        curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-        $apiResponse = curl_exec($ch);
-        $curlError   = curl_error($ch);
-        curl_close($ch);
-
-        if ($curlError) {
-            throw new Exception("cURL error: " . $curlError);
-        }
-
-        $decoded = json_decode($apiResponse, true);
-        if (!$decoded) {
-            throw new Exception("Invalid response from server: " . substr($apiResponse, 0, 200));
-        }
-
-        if (!empty($decoded['status']) && $decoded['status'] === true) {
-            echo json_encode(['status' => true, 'message' => $decoded['message'] ?? 'Hero image updated successfully!']);
-        } else {
-            throw new Exception($decoded['message'] ?? 'Upload failed on the server.');
-        }
-
-    } catch (Exception $e) {
-        echo json_encode(['status' => false, 'message' => $e->getMessage()]);
-    }
-    exit();
-}
-
 // Fetch current image from DB — build URL exactly like trainer/workshop images
 $hero_query = mysqli_query($connect, "SELECT setting_value FROM Quest_settings WHERE setting_key = 'homepage_hero_image'");
-$imageSrc   = $uri . 'public/homepage/hero-mos.png'; // fallback
+$imageSrc   = "assets/img/hero-mos-default.png"; // generic fallback
 if ($hero_query && mysqli_num_rows($hero_query) > 0) {
     $row = mysqli_fetch_assoc($hero_query);
     if (!empty($row['setting_value'])) {
         $val = $row['setting_value'];
         if (strpos($val, 'public/') === 0) {
-            // Laravel storage path — prepend $uri
+            // Laravel storage path — prepend $uri (same as blog/trainer images)
             $imageSrc = $uri . $val;
         } elseif (strpos($val, 'data:') === 0) {
-            // Legacy Base64
             $imageSrc = $val;
         } elseif (strpos($val, 'assets/img/') === 0) {
-            // Legacy local path
             $imageSrc = "../mos_frontend/" . $val . "?v=" . time();
         } else {
             $imageSrc = $val;
@@ -95,7 +22,6 @@ if ($hero_query && mysqli_num_rows($hero_query) > 0) {
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
@@ -125,15 +51,6 @@ if ($hero_query && mysqli_num_rows($hero_query) > 0) {
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
-        }
-        .placeholder-text {
-            color: #6b7280;
-            text-align: center;
-        }
-        .placeholder-text iconify-icon {
-            font-size: 48px;
-            display: block;
-            margin-bottom: 8px;
         }
     </style>
 </head>
@@ -165,7 +82,11 @@ if ($hero_query && mysqli_num_rows($hero_query) > 0) {
                             <h4 class="mb-24">Modify Hero Banner Image</h4>
                             <p class="text-secondary-light mb-24">Upload a new image to replace the girl character image displayed on the frontend homepage. Recommended size: 600px x 600px with transparent background.</p>
 
+                            <!-- Exact same form structure as add-blog.php / add-trainer.php -->
                             <form id="homepageSettingsForm" enctype="multipart/form-data">
+                                <!-- Token passed as hidden field — same as blog/trainer forms -->
+                                <input value="<?php echo $_SESSION['token'] ?>" hidden name="token">
+
                                 <div class="mb-24">
                                     <label class="form-label fw-semibold text-secondary-light">Current Image Preview</label>
                                     <div class="image-preview-container" id="previewContainer">
@@ -194,66 +115,55 @@ if ($hero_query && mysqli_num_rows($hero_query) > 0) {
     <?php include "include/script.php" ?>
 
     <script>
-        // Real-time image preview change
+        // Real-time image preview on file select
         $('#hero_image').on('change', function() {
             const file = this.files[0];
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     $('#currentHeroImage').attr('src', e.target.result);
-                }
+                };
                 reader.readAsDataURL(file);
             }
         });
 
-        // Form submission via AJAX
+        // Submit — identical pattern to add-blog.php / add-trainer.php
+        // Posts FormData directly to the API endpoint from the browser
         $('#homepageSettingsForm').on('submit', function(e) {
             e.preventDefault();
 
-            const formData = new FormData(this);
-
-            Swal.fire({
-                title: 'Uploading...',
-                text: 'Please wait while we update the homepage image.',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
+            var formData = new FormData(this);
 
             $.ajax({
-                url: 'homepage-settings.php?action=upload',
+                url: '<?php echo $apiEndpoint; ?>uploadHeroImage',
                 type: 'POST',
                 data: formData,
                 contentType: false,
                 processData: false,
                 success: function(response) {
-                    Swal.close();
                     if (response.status) {
                         Swal.fire({
                             icon: 'success',
                             title: 'Updated!',
                             text: response.message,
-                            timer: 2000,
-                            showConfirmButton: false
+                            showConfirmButton: false,
+                            timer: 1500
                         }).then(() => {
-                            // Reload page to refresh filemtime cache buster and form state
                             location.reload();
                         });
                     } else {
                         Swal.fire({
                             icon: 'error',
                             title: 'Upload Failed',
-                            text: response.message || 'An error occurred during file upload.'
+                            text: response.message || 'Something went wrong!'
                         });
                     }
                 },
                 error: function(xhr, status, error) {
-                    Swal.close();
                     Swal.fire({
                         icon: 'error',
-                        title: 'Error',
-                        text: 'A connection or server error occurred.'
+                        title: 'Oops...',
+                        text: 'An error occurred while uploading the image.'
                     });
                 }
             });
