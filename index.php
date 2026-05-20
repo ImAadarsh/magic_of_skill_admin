@@ -3,29 +3,67 @@
 use LDAP\Result;
 error_reporting(0);
 ini_set('display_errors', 0);
+$lifetime = 31536000; // 1 year in seconds
+ini_set('session.cookie_lifetime', $lifetime);
+ini_set('session.gc_maxlifetime', $lifetime);
 session_start();
 include("include/connect.php");
 
 if (isset($_POST['login'])) {
-    $data_array =  array(
-    "user_type" => 'admin',
-    "email" => $_POST['email'],
-    "password" => $_POST['password'],
-);
-    $make_call = callAPI('POST', 'login', json_encode($data_array),NULL);
-    $response = json_decode($make_call, true);
-    if($response['message']){
-        echo '<script>alert("'.$response['message'].'")</script>';
-    }  
-if ($response['user']['user_type']=='admin') {
-    $_SESSION['email'] =  $response['user']['email'];
-    $_SESSION['name'] = $response['user']['first_name'];
-    $_SESSION['userid'] = $response['user']['id'];
-    $_SESSION['usertype'] = $response['user']['user_type'];
-    $_SESSION['token'] = $response['user']['remember_token'];
-    
-    header('location: dashboard.php');
-}
+    $email = mysqli_real_escape_string($connect, $_POST['email']);
+    $password = $_POST['password'];
+    $logged_in = false;
+
+    // 1. Direct database authentication (fast, robust, ignores Hostinger DNS/routing issues)
+    if ($connect) {
+        $query = "SELECT * FROM users WHERE email = '$email' AND user_type = 'admin' LIMIT 1";
+        $result = mysqli_query($connect, $query);
+        if ($result && mysqli_num_rows($result) > 0) {
+            $user = mysqli_fetch_assoc($result);
+            if (password_verify($password, $user['password'])) {
+                $token = $user['remember_token'];
+                if (empty($token)) {
+                    $token = bin2hex(random_bytes(30));
+                    mysqli_query($connect, "UPDATE users SET remember_token = '$token' WHERE id = " . intval($user['id']));
+                }
+                
+                $_SESSION['email'] = $user['email'];
+                $_SESSION['name'] = $user['first_name'];
+                $_SESSION['userid'] = $user['id'];
+                $_SESSION['usertype'] = $user['user_type'];
+                $_SESSION['token'] = $token;
+                
+                $logged_in = true;
+                header('location: dashboard.php');
+                exit;
+            }
+        }
+    }
+
+    // 2. Fallback to API call if direct database check did not match
+    if (!$logged_in) {
+        $data_array = array(
+            "user_type" => 'admin',
+            "email" => $_POST['email'],
+            "password" => $_POST['password'],
+        );
+        $make_call = callAPI('POST', 'login', json_encode($data_array), NULL);
+        $response = json_decode($make_call, true);
+        
+        if (isset($response['user']) && $response['user']['user_type'] == 'admin') {
+            $_SESSION['email'] = $response['user']['email'];
+            $_SESSION['name'] = $response['user']['first_name'];
+            $_SESSION['userid'] = $response['user']['id'];
+            $_SESSION['usertype'] = $response['user']['user_type'];
+            $_SESSION['token'] = $response['user']['remember_token'];
+            
+            header('location: dashboard.php');
+            exit;
+        } else {
+            $msg = isset($response['message']) ? $response['message'] : 'Invalid Credentials or API is currently unreachable.';
+            echo '<script>alert("' . addslashes($msg) . '")</script>';
+        }
+    }
 }
 
 ?>

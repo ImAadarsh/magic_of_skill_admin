@@ -1,7 +1,4 @@
 <?php
-$lifetime = 31536000; // 1 year in seconds
-ini_set('session.cookie_lifetime', $lifetime);
-ini_set('session.gc_maxlifetime', $lifetime);
 
 // Prevent multiple inclusions
 if (defined('CONNECT_INCLUDED')) {
@@ -68,7 +65,7 @@ function callAPI($method, $urlpoint, $data, $token){
     curl_setopt($curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
     // EXECUTE:
     $result = curl_exec($curl);
-     echo $result;
+     // echo $result;
     if(!$result){echo curl_error($curl);}
     curl_close($curl);
     return $result;
@@ -112,7 +109,7 @@ function callAPI1($method, $urlpoint, $data, $token){
     curl_setopt($curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
     // EXECUTE:
     $result = curl_exec($curl);
-     echo $result;
+     // echo $result;
     if(!$result){echo curl_error($curl);}
     curl_close($curl);
     return $result;

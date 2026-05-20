@@ -219,6 +219,12 @@
           </li>
         </ul>
       </li>
+      <li>
+        <a href="logout.php" class="text-danger-main">
+          <iconify-icon icon="lucide:log-out" class="menu-icon"></iconify-icon>
+          <span>Logout</span>
+        </a>
+      </li>
       <!-- <li>
   <a href="workshop-manual.php">
     <i class="fas fa-heart menu-icon"></i>

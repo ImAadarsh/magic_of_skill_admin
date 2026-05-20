@@ -350,17 +350,33 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
                                                     </p>
                                                 </div>
                                             </td>
-                                            <td class="text-center">
-                                                <div class="d-flex align-items-center gap-2 justify-content-center">
-                                                    <!-- Optional: View Details Modal could be added here -->
-                                                    <button type="button"
-                                                        class="delete-feedback bg-danger-focus bg-hover-danger-200 text-danger-600 fw-medium w-40-px h-40-px d-flex justify-content-center align-items-center rounded-circle"
-                                                        data-id="<?php echo $row['id']; ?>">
-                                                        <iconify-icon icon="fluent:delete-24-regular"
-                                                            class="menu-icon"></iconify-icon>
-                                                    </button>
-                                                </div>
-                                            </td>
+                                             <td class="text-center">
+                                                 <div class="d-flex align-items-center gap-2 justify-content-center">
+                                                     <button type="button"
+                                                         class="view-feedback bg-info-focus bg-hover-info-200 text-info-600 fw-medium w-40-px h-40-px d-flex justify-content-center align-items-center rounded-circle"
+                                                         data-bs-toggle="modal"
+                                                         data-bs-target="#feedbackModal"
+                                                         data-id="<?php echo $row['id']; ?>"
+                                                         data-date="<?php echo date('d M Y H:i', strtotime($row['created_at'])); ?>"
+                                                         data-workshop="<?php echo htmlspecialchars($row['workshop_title'] ?? 'Unknown'); ?>"
+                                                         data-name="<?php echo htmlspecialchars($row['full_name']); ?>"
+                                                         data-email="<?php echo htmlspecialchars($row['email']); ?>"
+                                                         data-phone="<?php echo htmlspecialchars($row['phone']); ?>"
+                                                         data-school="<?php echo htmlspecialchars($row['school_name']); ?>"
+                                                         data-city="<?php echo htmlspecialchars($row['city']); ?>"
+                                                         data-rating="<?php echo $row['rating']; ?>"
+                                                         data-liked="<?php echo htmlspecialchars($row['liked_most']); ?>"
+                                                         data-future="<?php echo htmlspecialchars($row['future_topics'] ?? ''); ?>">
+                                                         <iconify-icon icon="majesticons:eye-line" class="icon text-xl"></iconify-icon>
+                                                     </button>
+                                                     <button type="button"
+                                                         class="delete-feedback bg-danger-focus bg-hover-danger-200 text-danger-600 fw-medium w-40-px h-40-px d-flex justify-content-center align-items-center rounded-circle"
+                                                         data-id="<?php echo $row['id']; ?>">
+                                                         <iconify-icon icon="fluent:delete-24-regular"
+                                                             class="menu-icon"></iconify-icon>
+                                                     </button>
+                                                 </div>
+                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php else: ?>
@@ -420,6 +436,79 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
             </div>
         </div>
 
+        <!-- Feedback Details Modal -->
+        <div class="modal fade" id="feedbackModal" tabindex="-1" aria-labelledby="feedbackModalLabel" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content radius-12 border-0">
+              <div class="modal-header border-bottom bg-base py-16 px-24">
+                <h5 class="modal-title fw-semibold" id="feedbackModalLabel">Workshop Feedback Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body p-24">
+                <div class="row g-4">
+                  <div class="col-md-6">
+                    <h6 class="text-md fw-semibold text-secondary-light mb-8">Participant Info</h6>
+                    <table class="table table-borderless sm-table">
+                      <tr>
+                        <td class="ps-0 py-4 fw-medium text-secondary-light" style="width: 30%;">Name:</td>
+                        <td class="py-4 text-secondary-light" id="modal-name"></td>
+                      </tr>
+                      <tr>
+                        <td class="ps-0 py-4 fw-medium text-secondary-light">Email:</td>
+                        <td class="py-4 text-secondary-light" id="modal-email"></td>
+                      </tr>
+                      <tr>
+                        <td class="ps-0 py-4 fw-medium text-secondary-light">Phone:</td>
+                        <td class="py-4 text-secondary-light" id="modal-phone"></td>
+                      </tr>
+                    </table>
+                  </div>
+                  <div class="col-md-6">
+                    <h6 class="text-md fw-semibold text-secondary-light mb-8">Workshop Details</h6>
+                    <table class="table table-borderless sm-table">
+                      <tr>
+                        <td class="ps-0 py-4 fw-medium text-secondary-light" style="width: 35%;">Workshop:</td>
+                        <td class="py-4 text-secondary-light fw-medium" id="modal-workshop"></td>
+                      </tr>
+                      <tr>
+                        <td class="ps-0 py-4 fw-medium text-secondary-light">School/Org:</td>
+                        <td class="py-4 text-secondary-light" id="modal-school"></td>
+                      </tr>
+                      <tr>
+                        <td class="ps-0 py-4 fw-medium text-secondary-light">City:</td>
+                        <td class="py-4 text-secondary-light" id="modal-city"></td>
+                      </tr>
+                      <tr>
+                        <td class="ps-0 py-4 fw-medium text-secondary-light">Date Submitted:</td>
+                        <td class="py-4 text-secondary-light" id="modal-date"></td>
+                      </tr>
+                    </table>
+                  </div>
+                  <div class="col-12 border-top pt-20">
+                    <div class="d-flex align-items-center gap-2 mb-16">
+                      <h6 class="text-md fw-semibold text-secondary-light mb-0">Rating:</h6>
+                      <div class="d-flex align-items-center gap-1" id="modal-rating-container">
+                        <!-- Stars will be inserted here -->
+                      </div>
+                    </div>
+                    <div class="mb-16">
+                      <h6 class="text-md fw-semibold text-secondary-light mb-8">What did you like most?</h6>
+                      <div class="bg-light p-16 radius-8 text-secondary-light text-md" id="modal-liked" style="white-space: pre-wrap;"></div>
+                    </div>
+                    <div>
+                      <h6 class="text-md fw-semibold text-secondary-light mb-8">What topics should we cover in future?</h6>
+                      <div class="bg-light p-16 radius-8 text-secondary-light text-md" id="modal-future" style="white-space: pre-wrap;"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer border-top p-16">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <?php include "include/footer.php" ?>
     </main>
 
@@ -447,8 +536,33 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
             XLSX.writeFile(wb, 'workshop_feedback.xlsx');
         });
 
-        // Delete functionality
+        // View details functionality
         $(document).ready(function () {
+            $('.view-feedback').on('click', function () {
+                const btn = $(this);
+                $('#modal-name').text(btn.data('name'));
+                $('#modal-email').text(btn.data('email'));
+                $('#modal-phone').text(btn.data('phone'));
+                $('#modal-workshop').text(btn.data('workshop'));
+                $('#modal-school').text(btn.data('school'));
+                $('#modal-city').text(btn.data('city'));
+                $('#modal-date').text(btn.data('date'));
+                $('#modal-liked').text(btn.data('liked'));
+                $('#modal-future').text(btn.data('future') || 'N/A');
+
+                // Generate stars
+                const rating = parseInt(btn.data('rating')) || 0;
+                let ratingHtml = `<span class="text-lg fw-bold text-warning-main me-2">${rating} Stars</span>`;
+                for (let i = 1; i <= 5; i++) {
+                    if (i <= rating) {
+                        ratingHtml += `<iconify-icon icon="solar:star-bold" class="text-warning-main text-lg"></iconify-icon>`;
+                    } else {
+                        ratingHtml += `<iconify-icon icon="solar:star-outline" class="text-secondary-light text-lg"></iconify-icon>`;
+                    }
+                }
+                $('#modal-rating-container').html(ratingHtml);
+            });
+
             $('.delete-feedback').on('click', function () {
                 const id = $(this).data('id');
 
