@@ -116,6 +116,9 @@
         </a>
         <ul class="sidebar-submenu">
           <li>
+            <a href="quiz-dashboard.php"><i class="ri-circle-fill circle-icon text-primary-600 w-auto"></i> Quiz Dashboard</a>
+          </li>
+          <li>
             <a href="quizzes.php"><i class="ri-circle-fill circle-icon text-primary-600 w-auto"></i> View Quizes</a>
           </li>
           <li>
@@ -154,6 +157,18 @@
           <li>
             <a href="add-review.php"><i class="ri-circle-fill circle-icon text-danger-main w-auto"></i> New
               Testimonial</a>
+          </li>
+        </ul>
+      </li>
+
+      <li class="dropdown">
+        <a href="javascript:void(0)">
+          <iconify-icon icon="solar:settings-outline" class="menu-icon"></iconify-icon>
+          <span>Homepage Settings</span>
+        </a>
+        <ul class="sidebar-submenu">
+          <li>
+            <a href="homepage-settings.php"><i class="ri-circle-fill circle-icon text-primary-600 w-auto"></i> Change Hero Image</a>
           </li>
         </ul>
       </li>

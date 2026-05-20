@@ -343,10 +343,10 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
                                             <td>
                                                 <div style="max-width: 250px;">
                                                     <p class="mb-1 text-sm"><strong>Liked:</strong>
-                                                        <?php echo strlen($row['liked_most']) > 50 ? htmlspecialchars(substr($row['liked_most'], 0, 50)) . '...' : htmlspecialchars($row['liked_most']); ?>
+                                                        <?php echo htmlspecialchars($row['liked_most']); ?>
                                                     </p>
                                                     <p class="mb-0 text-sm"><strong>Future:</strong>
-                                                        <?php echo strlen($row['future_topics']) > 50 ? htmlspecialchars(substr($row['future_topics'], 0, 50)) . '...' : htmlspecialchars($row['future_topics']); ?>
+                                                        <?php echo htmlspecialchars($row['future_topics']); ?>
                                                     </p>
                                                 </div>
                                             </td>

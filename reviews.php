@@ -151,7 +151,7 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
                             </form>
                         </div>
                     </div>
-                    <a href="add-testimonial.php" class="btn btn-primary">Add New Testimonial</a>
+                    <a href="add-review.php" class="btn btn-primary">Add New Testimonial</a>
                 </div>
                 <div class="card-body p-24">
                     <div class="table-responsive">
@@ -171,7 +171,7 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
                                         <td><?php echo $offset + $index + 1; ?></td>
                                         <td><?php echo htmlspecialchars($testimonial['name']); ?></td>
                                         <td>
-                                            <span class="text-md mb-0 fw-normal text-secondary-light"><?php echo htmlspecialchars(substr($testimonial['review'], 0, 100)) . (strlen($testimonial['review']) > 100 ? '...' : ''); ?></span>
+                                            <span class="text-md mb-0 fw-normal text-secondary-light"><?php echo htmlspecialchars($testimonial['review']); ?></span>
                                         </td>
                                         <td><?php echo $testimonial['rating']; ?> / 5</td>
                                         <td class="text-center"> 

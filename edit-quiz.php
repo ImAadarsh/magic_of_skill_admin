@@ -7,96 +7,169 @@ include 'include/connect.php';
 
 $quizId = $_GET['id'] ?? 0;
 
-// Handle existing question updates
-if (isset($_POST['questions']) && is_array($_POST['questions'])) {
-    foreach ($_POST['questions'] as $questionId => $question) {
-        $questionText = mysqli_real_escape_string($connect, $question['text']);
-        $questionType = $question['type'];
-        $marks = floatval($question['marks']);
+// Handle form submission (Update Quiz and Questions)
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // 1. Update Quiz metadata
+    $quizName = mysqli_real_escape_string($connect, $_POST['quiz_name'] ?? '');
+    $quizDate = mysqli_real_escape_string($connect, $_POST['quiz_date'] ?? '');
+    $durationMinutes = intval($_POST['duration_minutes'] ?? 0);
 
-        // Common update for both question types
-        $updateQuestionSql = "UPDATE questions SET question_text = ?, question_type = ?, marks = ? WHERE question_id = ?";
-        $updateQuestionStmt = $connect->prepare($updateQuestionSql);
-        
-        if ($updateQuestionStmt === false) {
-            die("Prepare failed: " . $connect->error . " for query: " . $updateQuestionSql);
-        }
+    $updateQuizSql = "UPDATE quizzes SET quiz_name = ?, creation_date = ?, duration_minutes = ? WHERE quiz_id = ?";
+    $updateQuizStmt = $connect->prepare($updateQuizSql);
+    if ($updateQuizStmt) {
+        $updateQuizStmt->bind_param("ssii", $quizName, $quizDate, $durationMinutes, $quizId);
+        $updateQuizStmt->execute();
+        $updateQuizStmt->close();
+    }
 
-        $bindResult = $updateQuestionStmt->bind_param("ssdi", $questionText, $questionType, $marks, $questionId);
-        if ($bindResult === false) {
-            die("Binding parameters failed: " . $updateQuestionStmt->error);
-        }
-
-        $executeResult = $updateQuestionStmt->execute();
-        if ($executeResult === false) {
-            die("Execute failed: " . $updateQuestionStmt->error);
-        }
-
-        // echo "Question $questionId basic info updated successfully.<br>";
-
-        // For multiple choice questions
-        if ($questionType === 'multiple_choice') {
-            $updateOptionsSql = "UPDATE questions SET option1 = ?, option2 = ?, option3 = ?, option4 = ?, correct_option = ? WHERE question_id = ?";
-            $updateOptionsStmt = $connect->prepare($updateOptionsSql);
-            
-            if ($updateOptionsStmt === false) {
-                die("Prepare failed: " . $connect->error . " for query: " . $updateOptionsSql);
+    // 1b. Handle deleted questions
+    $deletedQuestions = [];
+    if (isset($_POST['deleted_questions']) && is_array($_POST['deleted_questions'])) {
+        $deletedQuestions = array_map('intval', $_POST['deleted_questions']);
+        foreach ($deletedQuestions as $delQuestionId) {
+            // Delete from fill_blank_answers
+            $delFB = "DELETE FROM fill_blank_answers WHERE question_id = ?";
+            $stmt = $connect->prepare($delFB);
+            if ($stmt) {
+                $stmt->bind_param("i", $delQuestionId);
+                $stmt->execute();
+                $stmt->close();
             }
 
-            $option1 = mysqli_real_escape_string($connect, $question['option1']);
-            $option2 = mysqli_real_escape_string($connect, $question['option2']);
-            $option3 = mysqli_real_escape_string($connect, $question['option3']);
-            $option4 = mysqli_real_escape_string($connect, $question['option4']);
-            $correctOption = intval($question['correct_option']);
-
-            $bindResult = $updateOptionsStmt->bind_param("ssssii", $option1, $option2, $option3, $option4, $correctOption, $questionId);
-            if ($bindResult === false) {
-                die("Binding parameters failed: " . $updateOptionsStmt->error);
+            // Delete from user_answers
+            $delUA = "DELETE FROM user_answers WHERE question_id = ?";
+            $stmt = $connect->prepare($delUA);
+            if ($stmt) {
+                $stmt->bind_param("i", $delQuestionId);
+                $stmt->execute();
+                $stmt->close();
             }
 
-            $executeResult = $updateOptionsStmt->execute();
-            if ($executeResult === false) {
-                die("Execute failed: " . $updateOptionsStmt->error);
+            // Delete from questions
+            $delQ = "DELETE FROM questions WHERE question_id = ?";
+            $stmt = $connect->prepare($delQ);
+            if ($stmt) {
+                $stmt->bind_param("i", $delQuestionId);
+                $stmt->execute();
+                $stmt->close();
             }
-
-            // echo "Multiple choice options for question $questionId updated successfully.<br>";
-        } 
-        // For fill in the blank questions
-        elseif ($questionType === 'fill_blank') {
-            // Delete existing answers
-            $deleteAnswersSql = "DELETE FROM fill_blank_answers WHERE question_id = ?";
-            $deleteAnswersStmt = $connect->prepare($deleteAnswersSql);
-            $deleteAnswersStmt->bind_param("i", $questionId);
-            $deleteAnswersStmt->execute();
-
-            // Insert new answers
-            $insertAnswerSql = "INSERT INTO fill_blank_answers (question_id, correct_answer) VALUES (?, ?)";
-            $insertAnswerStmt = $connect->prepare($insertAnswerSql);
-            
-            if ($insertAnswerStmt === false) {
-                die("Prepare failed: " . $connect->error . " for query: " . $insertAnswerSql);
-            }
-
-            foreach ($question['correct_answers'] as $answer) {
-                $correctAnswer = mysqli_real_escape_string($connect, $answer);
-                $bindResult = $insertAnswerStmt->bind_param("is", $questionId, $correctAnswer);
-                if ($bindResult === false) {
-                    die("Binding parameters failed: " . $insertAnswerStmt->error);
-                }
-
-                $executeResult = $insertAnswerStmt->execute();
-                if ($executeResult === false) {
-                    die("Execute failed: " . $insertAnswerStmt->error);
-                }
-            }
-
-            // echo "Fill-in-the-blank answers for question $questionId updated successfully.<br>";
         }
     }
-}
-    // ... (code for handling new questions remains the same)
 
-    // Redirect back to
+    // 2. Handle existing question updates
+    if (isset($_POST['questions']) && is_array($_POST['questions'])) {
+        foreach ($_POST['questions'] as $questionId => $question) {
+            // Skip updating this question if it was deleted
+            if (in_array((int)$questionId, $deletedQuestions)) {
+                continue;
+            }
+            $questionText = mysqli_real_escape_string($connect, $question['text'] ?? '');
+            $questionType = $question['type'] ?? '';
+            $marks = floatval($question['marks'] ?? 0);
+
+            // Common update for both question types
+            $updateQuestionSql = "UPDATE questions SET question_text = ?, question_type = ?, marks = ? WHERE question_id = ?";
+            $updateQuestionStmt = $connect->prepare($updateQuestionSql);
+            if ($updateQuestionStmt) {
+                $updateQuestionStmt->bind_param("ssdi", $questionText, $questionType, $marks, $questionId);
+                $updateQuestionStmt->execute();
+                $updateQuestionStmt->close();
+            }
+
+            // For multiple choice questions
+            if ($questionType === 'multiple_choice') {
+                $updateOptionsSql = "UPDATE questions SET option1 = ?, option2 = ?, option3 = ?, option4 = ?, correct_option = ? WHERE question_id = ?";
+                $updateOptionsStmt = $connect->prepare($updateOptionsSql);
+                if ($updateOptionsStmt) {
+                    $option1 = mysqli_real_escape_string($connect, $question['option1'] ?? '');
+                    $option2 = mysqli_real_escape_string($connect, $question['option2'] ?? '');
+                    $option3 = mysqli_real_escape_string($connect, $question['option3'] ?? '');
+                    $option4 = mysqli_real_escape_string($connect, $question['option4'] ?? '');
+                    $correctOption = intval($question['correct_option'] ?? 0);
+
+                    $updateOptionsStmt->bind_param("ssssii", $option1, $option2, $option3, $option4, $correctOption, $questionId);
+                    $updateOptionsStmt->execute();
+                    $updateOptionsStmt->close();
+                }
+            } 
+            // For fill in the blank questions
+            elseif ($questionType === 'fill_blank') {
+                // Delete existing answers
+                $deleteAnswersSql = "DELETE FROM fill_blank_answers WHERE question_id = ?";
+                $deleteAnswersStmt = $connect->prepare($deleteAnswersSql);
+                if ($deleteAnswersStmt) {
+                    $deleteAnswersStmt->bind_param("i", $questionId);
+                    $deleteAnswersStmt->execute();
+                    $deleteAnswersStmt->close();
+                }
+
+                // Insert new answers
+                if (isset($question['correct_answers']) && is_array($question['correct_answers'])) {
+                    $insertAnswerSql = "INSERT INTO fill_blank_answers (question_id, correct_answer) VALUES (?, ?)";
+                    $insertAnswerStmt = $connect->prepare($insertAnswerSql);
+                    if ($insertAnswerStmt) {
+                        foreach ($question['correct_answers'] as $answer) {
+                            $correctAnswer = mysqli_real_escape_string($connect, $answer);
+                            $insertAnswerStmt->bind_param("is", $questionId, $correctAnswer);
+                            $insertAnswerStmt->execute();
+                        }
+                        $insertAnswerStmt->close();
+                    }
+                }
+            }
+        }
+    }
+
+    // 3. Handle new questions insertion
+    if (isset($_POST['new_questions']) && is_array($_POST['new_questions'])) {
+        foreach ($_POST['new_questions'] as $newQuestion) {
+            $questionText = mysqli_real_escape_string($connect, $newQuestion['text'] ?? '');
+            $questionType = $newQuestion['type'] ?? '';
+            $marks = floatval($newQuestion['marks'] ?? 0);
+
+            if ($questionType === 'multiple_choice') {
+                $correctOption = intval($newQuestion['correct_option'] ?? 0);
+                $options = array_map(function($option) use ($connect) {
+                    return mysqli_real_escape_string($connect, $option);
+                }, $newQuestion['options'] ?? []);
+
+                while (count($options) < 4) {
+                    $options[] = '';
+                }
+
+                $insertQuestionQuery = "INSERT INTO questions (quiz_id, question_text, option1, option2, option3, option4, correct_option, marks, question_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                $stmt = $connect->prepare($insertQuestionQuery);
+                if ($stmt) {
+                    $stmt->bind_param("isssssids", $quizId, $questionText, $options[0], $options[1], $options[2], $options[3], $correctOption, $marks, $questionType);
+                    $stmt->execute();
+                    $stmt->close();
+                }
+            } elseif ($questionType === 'fill_blank') {
+                $insertQuestionQuery = "INSERT INTO questions (quiz_id, question_text, marks, question_type) VALUES (?, ?, ?, ?)";
+                $stmt = $connect->prepare($insertQuestionQuery);
+                if ($stmt) {
+                    $stmt->bind_param("isds", $quizId, $questionText, $marks, $questionType);
+                    if ($stmt->execute()) {
+                        $newQuestionId = $stmt->insert_id;
+                        $correctAnswer = mysqli_real_escape_string($connect, $newQuestion['correct_answer'] ?? '');
+                        $insertAnswerSql = "INSERT INTO fill_blank_answers (question_id, correct_answer) VALUES (?, ?)";
+                        $ansStmt = $connect->prepare($insertAnswerSql);
+                        if ($ansStmt) {
+                            $ansStmt->bind_param("is", $newQuestionId, $correctAnswer);
+                            $ansStmt->execute();
+                            $ansStmt->close();
+                        }
+                    }
+                    $stmt->close();
+                }
+            }
+        }
+    }
+
+    // Redirect back to quizzes
+    header("Location: quizzes.php");
+    exit();
+}
 
 $quizId = $_GET['id'] ?? 0;
 
@@ -191,7 +264,7 @@ foreach ($questions as &$question) {
     }
     unset($question['options_or_answer']);
 }
-
+unset($question); // Break the reference to the last element
 ?>
 
 <!DOCTYPE html>
@@ -235,8 +308,13 @@ foreach ($questions as &$question) {
                 <h3>Existing Questions</h3>
                 <div id="existing-questions">
                 <?php foreach ($questions as $index => $question): ?>
-    <div class="question-block mb-4">
-        <h4>Question <?php echo $index + 1; ?></h4>
+    <div class="question-block mb-4" id="question-block-<?php echo $question['question_id']; ?>">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="mb-0">Question <?php echo $index + 1; ?></h4>
+            <button type="button" class="btn btn-danger btn-sm" onclick="markQuestionForDeletion(<?php echo $question['question_id']; ?>)">
+                <i class="ri-delete-bin-fill me-1"></i> Delete Question
+            </button>
+        </div>
         <input type="hidden" name="questions[<?php echo $question['question_id']; ?>][id]" value="<?php echo $question['question_id']; ?>">
         <input type="hidden" name="questions[<?php echo $question['question_id']; ?>][type]" value="<?php echo $question['question_type']; ?>">
         <div class="mb-3">
@@ -296,8 +374,13 @@ foreach ($questions as &$question) {
         function addQuestion(type) {
             newQuestionCount++;
             let questionHtml = `
-                <div class="question-block mb-4">
-                    <h4>New Question ${newQuestionCount}</h4>
+                <div class="question-block mb-4" id="new-question-${newQuestionCount}">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="mb-0">New Question ${newQuestionCount}</h4>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="removeNewQuestion(${newQuestionCount})">
+                            <i class="ri-delete-bin-fill me-1"></i> Remove
+                        </button>
+                    </div>
                     <input type="hidden" name="new_questions[${newQuestionCount}][type]" value="${type}">
                     <div class="mb-3">
                         <label class="form-label">Question Text</label>
@@ -344,15 +427,28 @@ foreach ($questions as &$question) {
             $('#new-questions-container').append(questionHtml);
         }
 
+        function removeNewQuestion(index) {
+            $(`#new-question-${index}`).remove();
+        }
+
+        function markQuestionForDeletion(questionId) {
+            if (confirm("Are you sure you want to delete this question? It will be permanently removed when you click 'Update Quiz'.")) {
+                $(`#question-block-${questionId}`).slideUp(300, function() {
+                    $(this).remove();
+                });
+                $('form').append(`<input type="hidden" name="deleted_questions[]" value="${questionId}">`);
+            }
+        }
+
         function addCorrectAnswer(button, questionId) {
-    const container = button.closest('.mb-3');
-    const newInput = document.createElement('input');
-    newInput.type = 'text';
-    newInput.className = 'form-control mb-2';
-    newInput.name = `questions[${questionId}][correct_answers][]`;
-    newInput.required = true;
-    container.insertBefore(newInput, button);
-}
+            const container = button.closest('.mb-3');
+            const newInput = document.createElement('input');
+            newInput.type = 'text';
+            newInput.className = 'form-control mb-2';
+            newInput.name = `questions[${questionId}][correct_answers][]`;
+            newInput.required = true;
+            container.insertBefore(newInput, button);
+        }
 
 
     </script>

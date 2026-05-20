@@ -1,11 +1,15 @@
 <?php
+$lifetime = 31536000; // 1 year in seconds
+ini_set('session.cookie_lifetime', $lifetime);
+ini_set('session.gc_maxlifetime', $lifetime);
+
 // Prevent multiple inclusions
 if (defined('CONNECT_INCLUDED')) {
     return;
 }
 define('CONNECT_INCLUDED', true);
 
-$host = "82.180.142.204";
+$host = "82.25.121.166";
 $user = "u954141192_mos";
 $password = "Mos@2024";
 $dbname = "u954141192_mos";
