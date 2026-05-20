@@ -2,7 +2,7 @@
 include "include/session.php";
 include "include/connect.php";
 
-// Handle File Upload via AJAX
+// Handle File Upload via AJAX — sends to backend API
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && $_GET['action'] === 'upload') {
     header('Content-Type: application/json');
     try {
@@ -11,92 +11,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && $_GET['ac
             throw new Exception("File upload failed with error code: " . $errorCode);
         }
 
-        $fileTmpPath = $_FILES['hero_image']['tmp_name'];
-        $fileSize = $_FILES['hero_image']['size'];
+        $fileTmpPath  = $_FILES['hero_image']['tmp_name'];
+        $fileOrigName = $_FILES['hero_image']['name'];
+        $fileSize     = $_FILES['hero_image']['size'];
+        $fileMime     = mime_content_type($fileTmpPath);
 
-        // Validate file size (max 5MB)
+        // Validate size (max 5MB)
         if ($fileSize > 5 * 1024 * 1024) {
             throw new Exception("File size exceeds limit of 5MB.");
         }
 
-        // Validate file is a valid image
+        // Validate image
         $check = getimagesize($fileTmpPath);
         if ($check === false) {
             throw new Exception("Uploaded file is not a valid image.");
         }
 
-        // Validate mime type
         $allowedMimeTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
         if (!in_array($check['mime'], $allowedMimeTypes)) {
-            throw new Exception("Invalid image format. Allowed formats: PNG, JPEG, JPG, GIF, WEBP.");
+            throw new Exception("Invalid format. Allowed: PNG, JPEG, JPG, GIF, WEBP.");
         }
 
-        $targetDir = "../mos_frontend/assets/img/";
-        if (!is_dir($targetDir)) {
-            @mkdir($targetDir, 0755, true);
+        // Build multipart POST to backend API
+        $token = $_SESSION['token'] ?? '';
+        $curlFile = new CURLFile($fileTmpPath, $fileMime, $fileOrigName);
+
+        $postData = [
+            'token'      => $token,
+            'hero_image' => $curlFile,
+        ];
+
+        $ch = curl_init($apiEndpoint . 'uploadHeroImage');
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+        $apiResponse = curl_exec($ch);
+        $curlError   = curl_error($ch);
+        curl_close($ch);
+
+        if ($curlError) {
+            throw new Exception("cURL error: " . $curlError);
         }
 
-        $targetFilePath = $targetDir . "hero-mos.png";
-        $localSaveSuccess = false;
-
-        // Try local file replacement if possible
-        try {
-            if (is_writable($targetDir) || (file_exists($targetFilePath) && is_writable($targetFilePath))) {
-                if (move_uploaded_file($fileTmpPath, $targetFilePath)) {
-                    $localSaveSuccess = true;
-                }
-            }
-        } catch (Exception $e) {
-            $localSaveSuccess = false;
+        $decoded = json_decode($apiResponse, true);
+        if (!$decoded) {
+            throw new Exception("Invalid response from server: " . substr($apiResponse, 0, 200));
         }
 
-        if ($localSaveSuccess) {
-            // Update database settings table with local path
-            $dbPath = 'assets/img/hero-mos.png';
-            $stmt = mysqli_prepare($connect, "INSERT INTO Quest_settings (setting_key, setting_value, description) VALUES ('homepage_hero_image', ?, 'Homepage Hero Image Path') ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()");
-            mysqli_stmt_bind_param($stmt, "ss", $dbPath, $dbPath);
-            mysqli_stmt_execute($stmt);
-            mysqli_stmt_close($stmt);
-
-            echo json_encode(['status' => true, 'message' => 'Homepage image updated locally and database reference saved!']);
+        if (!empty($decoded['status']) && $decoded['status'] === true) {
+            echo json_encode(['status' => true, 'message' => $decoded['message'] ?? 'Hero image updated successfully!']);
         } else {
-            // Fallback to storing image as Base64 in database
-            $imgData = file_get_contents($fileTmpPath);
-            $mimeType = $check['mime'];
-            $base64Image = 'data:' . $mimeType . ';base64,' . base64_encode($imgData);
-
-            // Ensure setting_value column type can hold large text
-            @mysqli_query($connect, "ALTER TABLE Quest_settings MODIFY setting_value MEDIUMTEXT");
-
-            $stmt = mysqli_prepare($connect, "INSERT INTO Quest_settings (setting_key, setting_value, description) VALUES ('homepage_hero_image', ?, 'Homepage Hero Image Base64') ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()");
-            mysqli_stmt_bind_param($stmt, "ss", $base64Image, $base64Image);
-            if (mysqli_stmt_execute($stmt)) {
-                echo json_encode(['status' => true, 'message' => 'Homepage image uploaded directly to database settings successfully!']);
-            } else {
-                throw new Exception("Failed to save image to database: " . mysqli_error($connect));
-            }
-            mysqli_stmt_close($stmt);
+            throw new Exception($decoded['message'] ?? 'Upload failed on the server.');
         }
+
     } catch (Exception $e) {
         echo json_encode(['status' => false, 'message' => $e->getMessage()]);
     }
     exit();
 }
 
-// Fetch current image from DB settings
+// Fetch current image from DB — build URL exactly like trainer/workshop images
 $hero_query = mysqli_query($connect, "SELECT setting_value FROM Quest_settings WHERE setting_key = 'homepage_hero_image'");
-$imageSrc = "../mos_frontend/assets/img/hero-mos.png";
+$imageSrc   = $uri . 'public/homepage/hero-mos.png'; // fallback
 if ($hero_query && mysqli_num_rows($hero_query) > 0) {
     $row = mysqli_fetch_assoc($hero_query);
     if (!empty($row['setting_value'])) {
-        if (strpos($row['setting_value'], 'public/') === 0) {
-            $imageSrc = $uri . $row['setting_value'];
-        } elseif (strpos($row['setting_value'], 'data:') === 0) {
-            $imageSrc = $row['setting_value'];
-        } elseif (strpos($row['setting_value'], 'assets/img/') === 0) {
-            $imageSrc = "../mos_frontend/" . $row['setting_value'] . "?v=" . time();
+        $val = $row['setting_value'];
+        if (strpos($val, 'public/') === 0) {
+            // Laravel storage path — prepend $uri
+            $imageSrc = $uri . $val;
+        } elseif (strpos($val, 'data:') === 0) {
+            // Legacy Base64
+            $imageSrc = $val;
+        } elseif (strpos($val, 'assets/img/') === 0) {
+            // Legacy local path
+            $imageSrc = "../mos_frontend/" . $val . "?v=" . time();
         } else {
-            $imageSrc = $row['setting_value'];
+            $imageSrc = $val;
         }
     }
 }
