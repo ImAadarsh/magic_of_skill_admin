@@ -150,19 +150,7 @@ $categories = $categoryResult->fetch_all(MYSQLI_ASSOC);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Blogs - Magic Of Skills Dashboard</title>
     <?php include "include/meta.php" ?>
-    <style>
-        @media (max-width: 767px) {
-            .card-header .d-flex {
-                flex-direction: column;
-            }
-            .card-header .d-flex > * {
-                margin-bottom: 10px;
-            }
-            .table-responsive {
-                overflow-x: auto;
-            }
-        }
-    </style>
+    <style>.table-responsive { overflow-x: auto; }</style>
 </head>
 <body>
     <?php include "include/aside.php" ?>
@@ -186,51 +174,79 @@ $categories = $categoryResult->fetch_all(MYSQLI_ASSOC);
             </div>
 
             <div class="card h-100 p-0 radius-12">
-                <div class="card-header border-bottom bg-base py-16 px-24 d-flex align-items-center flex-wrap gap-3 justify-content-between">
-                    <div class="d-flex align-items-center flex-wrap gap-3">
-                        <button id="showFilters" class="btn btn-secondary d-md-none mb-3">Show Filters</button>
-                        <div id="filterContainer" class="d-none d-md-block">
-                            <form method="GET" class="d-flex align-items-center gap-3 flex-wrap">
-                                <span class="text-md fw-medium text-secondary-light mb-0">Show</span>
-                                <select name="per_page" class="form-select form-select-sm w-auto ps-12 py-6 radius-12 h-40-px" onchange="this.form.submit()">
-                                    <option value="10" <?php echo $recordsPerPage == 10 ? 'selected' : ''; ?>>10</option>
-                                    <option value="25" <?php echo $recordsPerPage == 25 ? 'selected' : ''; ?>>25</option>
-                                    <option value="50" <?php echo $recordsPerPage == 50 ? 'selected' : ''; ?>>50</option>
-                                    <option value="100" <?php echo $recordsPerPage == 100 ? 'selected' : ''; ?>>100</option>
-                                </select>
-                                <input type="text" class="bg-base h-40-px w-auto" name="search" placeholder="Search" value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>">
-                                <select name="category" class="form-select form-select-sm w-auto ps-12 py-6 radius-12 h-40-px" onchange="this.form.submit()">
+                <div class="mos-card-header">
+                    <div class="mos-card-header-left">
+                        <button class="mos-filter-toggle d-lg-none" data-target="blogsFilterBody" aria-expanded="false">
+                            <iconify-icon icon="heroicons:funnel" style="font-size:15px"></iconify-icon>
+                            <span class="toggle-label">Filters</span>
+                            <span class="filter-count-badge">0</span>
+                        </button>
+                        <div class="mos-filter-body d-lg-block" id="blogsFilterBody">
+                            <form method="GET" class="mos-filter-row">
+                                <div class="mos-per-page-wrap">
+                                    <span>Show</span>
+                                    <select name="per_page">
+                                        <option value="10" <?php echo $recordsPerPage == 10 ? 'selected' : ''; ?>>10</option>
+                                        <option value="25" <?php echo $recordsPerPage == 25 ? 'selected' : ''; ?>>25</option>
+                                        <option value="50" <?php echo $recordsPerPage == 50 ? 'selected' : ''; ?>>50</option>
+                                        <option value="100" <?php echo $recordsPerPage == 100 ? 'selected' : ''; ?>>100</option>
+                                    </select>
+                                </div>
+                                <div class="mos-search-wrap">
+                                    <iconify-icon icon="ion:search-outline" class="mos-search-icon"></iconify-icon>
+                                    <input type="text" name="search" placeholder="Search blogs..." value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>">
+                                    <button type="button" class="mos-search-clear">×</button>
+                                </div>
+                                <select name="category" class="form-select form-select-sm">
                                     <option value="">All Categories</option>
                                     <?php foreach ($categories as $category): ?>
                                         <option value="<?php echo $category['id']; ?>" <?php echo isset($_GET['category']) && $_GET['category'] == $category['id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($category['name']); ?></option>
                                     <?php endforeach; ?>
                                 </select>
-                                <select name="created" class="form-select form-select-sm w-auto ps-12 py-6 radius-12 h-40-px" onchange="this.form.submit()">
+                                <select name="created" class="form-select form-select-sm">
                                     <option value="">Created</option>
                                     <option value="today" <?php echo isset($_GET['created']) && $_GET['created'] == 'today' ? 'selected' : ''; ?>>Today</option>
                                     <option value="this_week" <?php echo isset($_GET['created']) && $_GET['created'] == 'this_week' ? 'selected' : ''; ?>>This Week</option>
                                     <option value="this_month" <?php echo isset($_GET['created']) && $_GET['created'] == 'this_month' ? 'selected' : ''; ?>>This Month</option>
-                                    <option value="custom" <?php echo isset($_GET['created']) && $_GET['created'] == 'custom' ? 'selected' : ''; ?>>Custom Dates</option>
+                                    <option value="custom" <?php echo isset($_GET['created']) && $_GET['created'] == 'custom' ? 'selected' : ''; ?>>Custom Range</option>
                                 </select>
-                                <input type="date" name="start_date" value="<?php echo isset($_GET['start_date']) ? htmlspecialchars($_GET['start_date']) : ''; ?>" class="form-control">
-                                <input type="date" name="end_date" value="<?php echo isset($_GET['end_date']) ? htmlspecialchars($_GET['end_date']) : ''; ?>" class="form-control">
-                                <button type="submit" class="btn btn-primary btn-sm">Apply Filters</button>
+                                <div class="mos-date-range-wrap" style="display:flex;gap:6px;">
+                                    <input type="date" name="start_date" value="<?php echo isset($_GET['start_date']) ? htmlspecialchars($_GET['start_date']) : ''; ?>">
+                                    <input type="date" name="end_date" value="<?php echo isset($_GET['end_date']) ? htmlspecialchars($_GET['end_date']) : ''; ?>">
+                                </div>
+                                <button type="submit" class="mos-btn-apply">
+                                    <iconify-icon icon="heroicons:magnifying-glass" style="font-size:13px"></iconify-icon> Apply
+                                </button>
+                                <a href="blogs.php" class="mos-btn-reset">
+                                    <iconify-icon icon="heroicons:x-mark" style="font-size:13px"></iconify-icon> Reset
+                                </a>
                             </form>
                         </div>
                     </div>
-                    <a href="add-blog.php" class="btn btn-primary">Add New Blog</a>
+                    <div class="mos-card-header-right">
+                        <button id="downloadExcel" class="mos-btn-export">
+                            <iconify-icon icon="vscode-icons:file-type-excel" style="font-size:16px"></iconify-icon> Export
+                        </button>
+                        <a href="add-blog.php" class="mos-btn-primary">
+                            <iconify-icon icon="heroicons:plus" style="font-size:15px"></iconify-icon> Add Blog
+                        </a>
+                    </div>
+                </div>
+                <div class="mos-active-filters"></div>
+                <div class="mos-table-info-bar">
+                    <span>Showing <strong><?php echo $offset + 1; ?></strong> – <strong><?php echo min($offset + $recordsPerPage, $totalRecords); ?></strong> of <strong><?php echo number_format($totalRecords); ?></strong> blogs</span>
                 </div>
                 <div class="card-body p-24">
-                    <div class="table-responsive">
+                    <div class="table-responsive mos-table-wrap">
                         <table class="table bordered-table sm-table mb-0">
                             <thead>
                                 <tr>
-                                    <th scope="col">S.L</th>
-                                    <th scope="col">Created Date</th>
-                                    <th scope="col">Title</th>
-                                    <th scope="col">Author</th>
-                                    <th scope="col">Category</th>
-                                    <th scope="col">Visits</th>
+                                    <th scope="col">#</th>
+                                    <th scope="col" data-sortable>Created Date</th>
+                                    <th scope="col" data-sortable>Title</th>
+                                    <th scope="col" data-sortable>Author</th>
+                                    <th scope="col" data-sortable>Category</th>
+                                    <th scope="col" data-sortable>Visits</th>
                                     <th scope="col" class="text-center">Status</th>
                                     <th scope="col" class="text-center">Action</th>
                                 </tr>
@@ -272,42 +288,23 @@ $categories = $categoryResult->fetch_all(MYSQLI_ASSOC);
                         </table>
                     </div>
 
-                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-24">
-                        <span>Showing <?php echo $offset + 1; ?> to <?php echo min($offset + $recordsPerPage, $totalRecords); ?> of <?php echo $totalRecords; ?> entries</span>
-                        <ul class="pagination d-flex flex-wrap align-items-center gap-2 justify-content-center">
+                    <div class="mos-pagination-wrap">
+                        <span class="mos-pagination-info">Showing <?php echo $offset + 1; ?>–<?php echo min($offset + $recordsPerPage, $totalRecords); ?> of <?php echo number_format($totalRecords); ?> entries</span>
+                        <ul class="mos-pagination">
                             <?php if ($page > 1): ?>
-                                <li class="page-item">
-                                    <a class="page-link bg-neutral-300 text-secondary-light fw-semibold radius-8 border-0 d-flex align-items-center justify-content-center h-32-px w-32-px text-md" href="?page=<?php echo $page - 1; ?>&search=<?php echo urlencode($_GET['search'] ?? ''); ?>&category=<?php echo urlencode($_GET['category'] ?? ''); ?>&created=<?php echo urlencode($_GET['created'] ?? ''); ?>&per_page=<?php echo $recordsPerPage; ?>">
-                                        <iconify-icon icon="ep:d-arrow-left"></iconify-icon>
-                                    </a>
-                                </li>
-                            <?php endif; ?>
-
+                                <li><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => 1])); ?>"><iconify-icon icon="ep:d-arrow-left"></iconify-icon></a></li>
+                                <li><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>">‹</a></li>
+                            <?php else: ?><li class="disabled"><a>‹</a></li><?php endif; ?>
                             <?php
-                            $startPage = max(1, $page - 2);
-                            $endPage = min($totalPages, $page + 2);
-
-                            for ($i = $startPage; $i <= $endPage; $i++):
-                            ?>
-                                <li class="page-item">
-                                    <a class="page-link <?php echo $i == $page ? 'bg-primary-600 text-white' : 'bg-neutral-300 text-secondary-light'; ?> fw-semibold radius-8 border-0 d-flex align-items-center justify-content-center h-32-px w-32-px text-md" href="?page=<?php echo $i; ?>&search=<?php echo urlencode($_GET['search'] ?? ''); ?>&category=<?php echo urlencode($_GET['category'] ?? ''); ?>&created=<?php echo urlencode($_GET['created'] ?? ''); ?>&per_page=<?php echo $recordsPerPage; ?>">
-                                        <?php echo $i; ?>
-                                    </a>
-                                </li>
+                            $startPage = max(1, $page - 2); $endPage = min($totalPages, $page + 2);
+                            for ($i = $startPage; $i <= $endPage; $i++): ?>
+                                <li class="<?php echo $i == $page ? 'active' : ''; ?>"><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $i])); ?>"><?php echo $i; ?></a></li>
                             <?php endfor; ?>
-
                             <?php if ($page < $totalPages): ?>
-                                <li class="page-item">
-                                    <a class="page-link bg-neutral-300 text-secondary-light fw-semibold radius-8 border-0 d-flex align-items-center justify-content-center h-32-px w-32-px text-md" href="?page=<?php echo $page + 1; ?>&search=<?php echo urlencode($_GET['search'] ?? ''); ?>&category=<?php echo urlencode($_GET['category'] ?? ''); ?>&created=<?php echo urlencode($_GET['created'] ?? ''); ?>&per_page=<?php echo $recordsPerPage; ?>">
-                                        <iconify-icon icon="ep:d-arrow-right"></iconify-icon>
-                                    </a>
-                                </li>
-                            <?php endif; ?>
+                                <li><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>">›</a></li>
+                                <li><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $totalPages])); ?>"><iconify-icon icon="ep:d-arrow-right"></iconify-icon></a></li>
+                            <?php else: ?><li class="disabled"><a>›</a></li><?php endif; ?>
                         </ul>
-                    </div>
-
-                    <div class="mt-3">
-                        <button id="downloadExcel" class="btn btn-success">Download Excel</button>
                     </div>
                 </div>
             </div>

@@ -23,5 +23,7 @@
   <script src="assets/js/lib/slick.min.js"></script>
   <!-- main js -->
   <script src="assets/js/app.js"></script>
+  <!-- MOS Table Enhancement -->
+  <script src="assets/js/mos-table.js"></script>
 
   

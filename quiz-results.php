@@ -43,8 +43,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $types .= "s";
     }
     if (!empty($_GET['school'])) {
-        $whereClause[] = "u.school = ?";
-        $params[] = $_GET['school'];
+        if (is_array($_GET['school'])) {
+            $selectedSchools = array_filter($_GET['school']);
+            if (!empty($selectedSchools)) {
+                $schoolPlaceholders = implode(',', array_fill(0, count($selectedSchools), '?'));
+                $whereClause[] = "u.school IN ($schoolPlaceholders)";
+                foreach ($selectedSchools as $sch) {
+                    $params[] = $sch;
+                    $types .= "s";
+                }
+            }
+        } else {
+            $whereClause[] = "u.school = ?";
+            $params[] = $_GET['school'];
+            $types .= "s";
+        }
+    }
+    if (!empty($_GET['school_text'])) {
+        $whereClause[] = "u.school LIKE ?";
+        $params[] = "%" . $_GET['school_text'] . "%";
         $types .= "s";
     }
     if (!empty($_GET['grade'])) {
@@ -88,15 +105,58 @@ if (!$stmt->execute()) {
 }
 
 $result = $stmt->get_result();
-$quizResults = $result->fetch_all(MYSQLI_ASSOC);
+$fullQuizResults = $result->fetch_all(MYSQLI_ASSOC);
+
+// Pre-calculate ranks on the full search results list to keep them consistent across paginated pages
+$rank = 1;
+$prevScore = null;
+$prevTime = null;
+foreach ($fullQuizResults as $index => &$res) {
+    if ($res['score'] !== $prevScore || $res['time_taken'] !== $prevTime) {
+        $rank = $index + 1;
+    }
+    $res['calculated_rank'] = $rank;
+    $prevScore = $res['score'];
+    $prevTime = $res['time_taken'];
+}
+unset($res); // break reference
+
+// Export to CSV if requested
+if (isset($_GET['export']) && $_GET['export'] === 'csv') {
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename=quiz_results.csv');
+    $output = fopen('php://output', 'w');
+    
+    // Output CSV headers
+    fputcsv($output, ['Rank', 'Name', 'Quiz', 'School', 'Grade', 'City', 'Score', 'Time Taken']);
+    
+    foreach ($fullQuizResults as $res) {
+        $name = $res['first_name'] . ' ' . $res['last_name'];
+        $scoreStr = $res['score'] . ' / ' . $res['total_possible_score'];
+        $timeTakenStr = gmdate("H:i:s", $res['time_taken']);
+        
+        fputcsv($output, [
+            $res['calculated_rank'],
+            $name,
+            $res['quiz_name'],
+            $res['school'],
+            $res['grade'],
+            $res['city'],
+            $scoreStr,
+            $timeTakenStr
+        ]);
+    }
+    fclose($output);
+    exit;
+}
 
 // Pagination
 $resultsPerPage = 20;
-$totalResults = count($quizResults);
+$totalResults = count($fullQuizResults);
 $totalPages = ceil($totalResults / $resultsPerPage);
 $currentPage = isset($_GET['page']) ? max(1, min($totalPages, intval($_GET['page']))) : 1;
 $offset = ($currentPage - 1) * $resultsPerPage;
-$quizResults = array_slice($quizResults, $offset, $resultsPerPage);
+$quizResults = array_slice($fullQuizResults, $offset, $resultsPerPage);
 
 ?>
 
@@ -110,12 +170,45 @@ $quizResults = array_slice($quizResults, $offset, $resultsPerPage);
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <style>
         body {
             font-family: 'Poppins', sans-serif;
             background-color: #f4f7fa;
+        }
+        /* Custom Select2 Styles to match Bootstrap 5 */
+        .select2-container {
+            width: 100% !important;
+        }
+        .select2-container--default .select2-selection--multiple {
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            min-height: 38px;
+            padding: 2px 6px;
+        }
+        .select2-container--default.select2-container--focus .select2-selection--multiple {
+            border-color: #86b7fe;
+            outline: 0;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice {
+            background-color: #0d6efd;
+            border: none;
+            color: #fff;
+            border-radius: 3px;
+            padding: 2px 8px;
+            margin-top: 4px;
+        }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+            color: #fff;
+            margin-right: 5px;
+            background: transparent;
+            border: none;
+        }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+            color: #ffc107;
         }
         .dashboard-main-body {
             padding: 2rem;
@@ -210,6 +303,7 @@ $quizResults = array_slice($quizResults, $offset, $resultsPerPage);
 
             <div class="filters-container">
                 <form method="GET" class="row g-3">
+                    <!-- Row 1 -->
                     <div class="col-md-4">
                         <label for="quiz_id" class="filter-label">Quiz</label>
                         <select name="quiz_id" id="quiz_id" class="custom-select">
@@ -225,18 +319,7 @@ $quizResults = array_slice($quizResults, $offset, $resultsPerPage);
                         <label for="quiz_date" class="filter-label">Quiz Date</label>
                         <input type="text" id="quiz_date" name="quiz_date" class="form-control datepicker" value="<?php echo isset($_GET['quiz_date']) ? htmlspecialchars($_GET['quiz_date']) : ''; ?>" placeholder="Select date">
                     </div>
-                    <div class="col-md-4">
-                        <label for="school" class="filter-label">School</label>
-                        <select name="school" id="school" class="custom-select">
-                            <option value="">All Schools</option>
-                            <?php foreach ($schools as $school): ?>
-                                <option value="<?php echo $school['school']; ?>" <?php echo (isset($_GET['school']) && $_GET['school'] == $school['school']) ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($school['school']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
+                    <div class="col-md-2">
                         <label for="grade" class="filter-label">Grade</label>
                         <select name="grade" id="grade" class="custom-select">
                             <option value="">All Grades</option>
@@ -247,7 +330,7 @@ $quizResults = array_slice($quizResults, $offset, $resultsPerPage);
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-2">
                         <label for="city" class="filter-label">City</label>
                         <select name="city" id="city" class="custom-select">
                             <option value="">All Cities</option>
@@ -258,9 +341,28 @@ $quizResults = array_slice($quizResults, $offset, $resultsPerPage);
                             <?php endforeach; ?>
                         </select>
                     </div>
+
+                    <!-- Row 2 -->
+                    <div class="col-md-4">
+                        <label for="school" class="filter-label">School (Select Multiple)</label>
+                        <select name="school[]" id="school" class="custom-select" multiple="multiple">
+                            <?php foreach ($schools as $school): ?>
+                                <option value="<?php echo $school['school']; ?>" <?php echo (isset($_GET['school']) && (is_array($_GET['school']) ? in_array($school['school'], $_GET['school']) : $_GET['school'] == $school['school'])) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($school['school']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="school_text" class="filter-label">School (Text Search)</label>
+                        <div class="input-group">
+                            <input type="text" id="school_text" name="school_text" class="form-control" value="<?php echo isset($_GET['school_text']) ? htmlspecialchars($_GET['school_text']) : ''; ?>" placeholder="Enter school name...">
+                            <button class="btn btn-primary" type="submit">Search</button>
+                        </div>
+                    </div>
                     <div class="col-md-4 d-flex align-items-end">
-                        <button type="submit" class="apply-filters-btn me-2">Apply Filters</button>
-                        <a href="<?php echo $_SERVER['PHP_SELF']; ?>" class="btn btn-secondary">Clear Filters</a>
+                        <button type="submit" class="apply-filters-btn me-2 w-50">Apply Filters</button>
+                        <a href="<?php echo $_SERVER['PHP_SELF']; ?>" class="btn btn-secondary w-50">Clear Filters</a>
                     </div>
                 </form>
             </div>
@@ -284,19 +386,9 @@ $quizResults = array_slice($quizResults, $offset, $resultsPerPage);
                             </tr>
                         </thead>
                         <tbody>
-                            <?php 
-                            $rank = 1;
-                            $prevScore = null;
-                            $prevTime = null;
-                            foreach ($quizResults as $index => $result): 
-                                if ($result['score'] !== $prevScore || $result['time_taken'] !== $prevTime) {
-                                    $rank = $index + 1;
-                                }
-                                $prevScore = $result['score'];
-                                $prevTime = $result['time_taken'];
-                            ?>
+                            <?php foreach ($quizResults as $result): ?>
                                 <tr>
-                                    <td><?php echo $rank; ?></td>
+                                    <td><?php echo $result['calculated_rank']; ?></td>
                                     <td><?php echo htmlspecialchars($result['first_name'] . ' ' . $result['last_name']); ?></td>
                                     <td><?php echo htmlspecialchars($result['quiz_name']); ?></td>
                                     <td><?php echo htmlspecialchars($result['school']); ?></td>
@@ -328,12 +420,18 @@ $quizResults = array_slice($quizResults, $offset, $resultsPerPage);
 
     <?php include "include/script.php" ?>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             flatpickr("#quiz_date", {
                 dateFormat: "Y-m-d",
                 allowInput: true
+            });
+
+            $('#school').select2({
+                placeholder: "Select schools",
+                allowClear: true
             });
 
             $('.results-table').DataTable({
@@ -345,22 +443,9 @@ $quizResults = array_slice($quizResults, $offset, $resultsPerPage);
             });
 
             document.getElementById('exportCSV').addEventListener('click', function() {
-                let csv = 'Rank,Name,Quiz,School,Grade,City,Score,Time Taken\n';
-                document.querySelectorAll('.results-table tbody tr').forEach(function(row) {
-                    let rowData = Array.from(row.cells).map(cell => '"' + cell.textContent.trim() + '"');
-                    csv += rowData.join(',') + '\n';
-                });
-                let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                let link = document.createElement("a");
-                if (link.download !== undefined) {
-                    let url = URL.createObjectURL(blob);
-                    link.setAttribute("href", url);
-                    link.setAttribute("download", "quiz_results.csv");
-                    link.style.visibility = 'hidden';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                }
+                let currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.set('export', 'csv');
+                window.location.href = currentUrl.toString();
             });
         });
     </script>
