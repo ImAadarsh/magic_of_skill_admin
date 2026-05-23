@@ -58,6 +58,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit;
 }
 
+// Helper to extract a core fuzzy key for grouping similar spelling school names
+if (!function_exists('getFuzzySchoolKey')) {
+    function getFuzzySchoolKey($schoolName) {
+        $name = trim(strtolower($schoolName));
+        // Remove punctuation and special characters
+        $name = preg_replace('/[^\w\s]/', '', $name);
+        // Words to strip to match the core name
+        $stopWords = ['school', 'schools', 'international', 'public', 'private', 'high', 'sr', 'sec', 'secondary', 'primary', 'vadodara', 'vadhodara', 'udaipur', 'co', 'ed'];
+        
+        $words = preg_split('/\s+/', $name);
+        $filteredWords = array_filter($words, function($word) use ($stopWords) {
+            return !in_array($word, $stopWords) && strlen($word) > 0;
+        });
+        
+        $key = implode(' ', $filteredWords);
+        return !empty($key) ? $key : $name;
+    }
+}
+
+// Global dictionary: fetch all unique raw schools to build fuzzy mapping groups
+$allSchoolsQuery = "SELECT DISTINCT school FROM users WHERE school IS NOT NULL AND school != ''";
+$allSchoolsResult = $connect->query($allSchoolsQuery);
+$allSchoolsList = $allSchoolsResult ? $allSchoolsResult->fetch_all(MYSQLI_ASSOC) : [];
+
+$fuzzyGroups = [];
+foreach ($allSchoolsList as $row) {
+    $orig = trim($row['school']);
+    $norm = trim(strtolower($orig));
+    $key = getFuzzySchoolKey($orig);
+    
+    if (!isset($fuzzyGroups[$key])) {
+        $fuzzyGroups[$key] = [
+            'display' => $orig,
+            'original_names' => []
+        ];
+    }
+    $fuzzyGroups[$key]['original_names'][] = $norm;
+    
+    // Choose the longest name as the representative display name
+    if (strlen($orig) > strlen($fuzzyGroups[$key]['display'])) {
+        $fuzzyGroups[$key]['display'] = $orig;
+    }
+}
+
 // 3. Parse Advanced Filter Parameters
 $whereClause = [];
 $params = [];
@@ -108,7 +152,7 @@ $citiesSql = "SELECT MIN(city) as city, TRIM(LOWER(city)) as normalized_city
 $citiesResult = $connect->query($citiesSql);
 $cities = $citiesResult ? $citiesResult->fetch_all(MYSQLI_ASSOC) : [];
 
-// 5. Fetch Schools List dynamically (dependent on date/quiz/grade/city filter)
+// 5. Fetch Active Schools List dynamically (dependent on date/quiz/grade/city filter)
 $schoolWhere = [];
 $schoolParams = [];
 $schoolTypes = "";
@@ -135,7 +179,7 @@ if ($selectedCity) {
     $schoolTypes .= "s";
 }
 
-$schoolsSql = "SELECT MIN(u.school) as school, TRIM(LOWER(u.school)) as normalized_school
+$schoolsSql = "SELECT u.school as school
                FROM user_quiz_attempts uqa
                JOIN users u ON uqa.user_id = u.id
                JOIN quizzes q ON uqa.quiz_id = q.quiz_id
@@ -144,19 +188,40 @@ $schoolsSql = "SELECT MIN(u.school) as school, TRIM(LOWER(u.school)) as normaliz
 if (!empty($schoolWhere)) {
     $schoolsSql .= " AND " . implode(" AND ", $schoolWhere);
 }
-$schoolsSql .= " GROUP BY normalized_school ORDER BY school";
+$schoolsSql .= " GROUP BY u.school ORDER BY u.school";
 
 $schoolsStmt = $connect->prepare($schoolsSql);
+$activeSchools = [];
 if ($schoolsStmt) {
     if (!empty($schoolTypes) && !empty($schoolParams)) {
         $schoolsStmt->bind_param($schoolTypes, ...$schoolParams);
     }
     $schoolsStmt->execute();
     $schoolsResult = $schoolsStmt->get_result();
-    $schools = $schoolsResult->fetch_all(MYSQLI_ASSOC);
-} else {
-    $schools = [];
+    $activeSchoolsRaw = $schoolsResult->fetch_all(MYSQLI_ASSOC);
+    foreach ($activeSchoolsRaw as $row) {
+        $activeSchools[] = trim($row['school']);
+    }
 }
+
+// Find fuzzy keys active in the current filter scope
+$activeFuzzyKeys = [];
+foreach ($activeSchools as $schName) {
+    $activeFuzzyKeys[] = getFuzzySchoolKey($schName);
+}
+$activeFuzzyKeys = array_unique($activeFuzzyKeys);
+
+// Filter global groups to only those active in dropdown
+$schoolsDropdownData = [];
+foreach ($activeFuzzyKeys as $fKey) {
+    if (isset($fuzzyGroups[$fKey])) {
+        $schoolsDropdownData[$fKey] = $fuzzyGroups[$fKey];
+    }
+}
+// Sort by display name alphabetically
+uasort($schoolsDropdownData, function($a, $b) {
+    return strcasecmp($a['display'], $b['display']);
+});
 
 // 6. Build the WHERE clause for attempts query
 if ($selectedQuizId) {
@@ -171,11 +236,24 @@ if ($startDate && $endDate) {
     $types .= "ss";
 }
 if (!empty($selectedSchools)) {
-    $placeholders = implode(',', array_fill(0, count($selectedSchools), '?'));
-    $whereClause[] = "TRIM(LOWER(u.school)) IN ($placeholders)";
-    foreach ($selectedSchools as $sch) {
-        $params[] = trim(strtolower($sch));
-        $types .= "s";
+    // selectedSchools are the selected fuzzy keys
+    $originalNamesToMatch = [];
+    foreach ($selectedSchools as $key) {
+        if (isset($fuzzyGroups[$key])) {
+            $originalNamesToMatch = array_merge($originalNamesToMatch, $fuzzyGroups[$key]['original_names']);
+        } else {
+            $originalNamesToMatch[] = $key;
+        }
+    }
+    $originalNamesToMatch = array_unique($originalNamesToMatch);
+    
+    if (!empty($originalNamesToMatch)) {
+        $placeholders = implode(',', array_fill(0, count($originalNamesToMatch), '?'));
+        $whereClause[] = "TRIM(LOWER(u.school)) IN ($placeholders)";
+        foreach ($originalNamesToMatch as $sch) {
+            $params[] = $sch;
+            $types .= "s";
+        }
     }
 }
 if ($schoolText) {
@@ -204,12 +282,12 @@ if ($scoreMax !== null) {
     $types .= "i";
 }
 if ($timeMin !== null) {
-    $whereClause[] = "IF(q.duration_minutes > 0, LEAST(TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time), q.duration_minutes * 60), TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time)) >= ?";
+    $whereClause[] = "COALESCE(IF(q.duration_minutes > 0, LEAST(TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time), q.duration_minutes * 60), TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time)), 0) >= ?";
     $params[] = $timeMin;
     $types .= "i";
 }
 if ($timeMax !== null) {
-    $whereClause[] = "IF(q.duration_minutes > 0, LEAST(TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time), q.duration_minutes * 60), TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time)) <= ?";
+    $whereClause[] = "COALESCE(IF(q.duration_minutes > 0, LEAST(TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time), q.duration_minutes * 60), TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time)), 0) <= ?";
     $params[] = $timeMax;
     $types .= "i";
 }
@@ -220,7 +298,7 @@ if ($passStatus === 'passed') {
 }
 
 $sql = "SELECT uqa.*, q.quiz_name, u.first_name, u.last_name, u.school, u.grade, u.city,
-               IF(q.duration_minutes > 0, LEAST(TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time), q.duration_minutes * 60), TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time)) as time_taken,
+               COALESCE(IF(q.duration_minutes > 0, LEAST(TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time), q.duration_minutes * 60), TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time)), 0) as time_taken,
                (SELECT SUM(marks) FROM questions WHERE quiz_id = q.quiz_id) as total_possible_score
         FROM user_quiz_attempts uqa
         JOIN quizzes q ON uqa.quiz_id = q.quiz_id
@@ -333,7 +411,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     foreach ($exportResults as $res) {
         $name = $res['first_name'] . ' ' . $res['last_name'];
         $scoreStr = $res['score'] . ' / ' . $res['total_possible_score'];
-        $timeTakenStr = gmdate("H:i:s", $res['time_taken']);
+        $timeTakenStr = gmdate("H:i:s", intval($res['time_taken']));
         fputcsv($output, [
             $res['calculated_rank'],
             $name,
@@ -947,9 +1025,9 @@ $quizResults = array_slice($fullQuizResults, $offset, $resultsPerPage);
                             <div class="col-lg-4 col-md-6 col-sm-12">
                                 <label for="school" class="filter-label">School (Select Multiple)</label>
                                 <select name="school[]" id="school" class="form-select form-select-sm" multiple="multiple">
-                                    <?php foreach ($schools as $school): ?>
-                                        <option value="<?php echo htmlspecialchars($school['normalized_school']); ?>" <?php echo (in_array($school['normalized_school'], $selectedSchools)) ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($school['school']); ?>
+                                    <?php foreach ($schoolsDropdownData as $key => $group): ?>
+                                        <option value="<?php echo htmlspecialchars($key); ?>" <?php echo (in_array($key, $selectedSchools)) ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($group['display']); ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -1080,7 +1158,7 @@ $quizResults = array_slice($fullQuizResults, $offset, $resultsPerPage);
                                                 <div class="progress-bar <?php echo $barColor; ?>" style="width: <?php echo $ratio; ?>%"></div>
                                             </div>
                                         </td>
-                                        <td class="time-taken"><iconify-icon icon="solar:clock-circle-linear" class="align-middle me-1 text-muted"></iconify-icon> <?php echo gmdate("H:i:s", $result['time_taken']); ?></td>
+                                        <td class="time-taken"><iconify-icon icon="solar:clock-circle-linear" class="align-middle me-1 text-muted"></iconify-icon> <?php echo gmdate("H:i:s", intval($result['time_taken'])); ?></td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>
@@ -1117,7 +1195,7 @@ $quizResults = array_slice($fullQuizResults, $offset, $resultsPerPage);
                                     </div>
                                     <div class="fs-8 text-muted mt-2 border-top pt-2 d-flex justify-content-between">
                                         <span>Rank #<?php echo $result['calculated_rank']; ?></span>
-                                        <span>Time: <?php echo gmdate("i:s", $result['time_taken']); ?></span>
+                                        <span>Time: <?php echo gmdate("i:s", intval($result['time_taken'])); ?></span>
                                     </div>
                                 </div>
                             </div>
