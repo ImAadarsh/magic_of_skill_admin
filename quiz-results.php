@@ -900,100 +900,108 @@ $quizResults = array_slice($fullQuizResults, $offset, $resultsPerPage);
             
             <div class="collapse <?php echo (!empty($whereClause)) ? 'show' : ''; ?> mb-3" id="advancedFiltersPanel">
                 <div class="filters-container border shadow-sm rounded p-4 bg-white">
-                    <form method="GET" class="row g-3">
+                    <form method="GET" class="container-fluid px-0">
                         <!-- Row 1 -->
-                        <div class="col-md-4">
-                            <label for="quiz_id" class="filter-label">Quiz</label>
-                            <select name="quiz_id" id="quiz_id" class="custom-select">
-                                <option value="">All Quizzes</option>
-                                <?php foreach ($quizzes as $quiz): ?>
-                                    <option value="<?php echo $quiz['quiz_id']; ?>" <?php echo ($selectedQuizId == $quiz['quiz_id']) ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($quiz['quiz_name']); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label for="quiz_date_range" class="filter-label">Quiz Date Range</label>
-                            <input type="text" id="quiz_date_range" name="quiz_date_range" class="form-control datepicker" value="<?php echo htmlspecialchars($selectedQuizDateRange); ?>" placeholder="Select date range">
-                        </div>
-                        <div class="col-md-2">
-                            <label for="grade" class="filter-label">Grade</label>
-                            <select name="grade" id="grade" class="custom-select">
-                                <option value="">All Grades</option>
-                                <?php foreach ($grades as $grade): ?>
-                                    <option value="<?php echo $grade['grade']; ?>" <?php echo ($selectedGrade == $grade['grade']) ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($grade['grade']); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label for="city" class="filter-label">City</label>
-                            <select name="city" id="city" class="custom-select">
-                                <option value="">All Cities</option>
-                                <?php foreach ($cities as $city): ?>
-                                    <option value="<?php echo htmlspecialchars($city['normalized_city']); ?>" <?php echo ($selectedCity == $city['normalized_city']) ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($city['city']); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
+                        <div class="row g-2 mb-2">
+                            <div class="col-lg-3 col-md-6 col-sm-12">
+                                <label for="quiz_id" class="filter-label">Quiz</label>
+                                <select name="quiz_id" id="quiz_id" class="form-select form-select-sm">
+                                    <option value="">All Quizzes</option>
+                                    <?php foreach ($quizzes as $quiz): ?>
+                                        <option value="<?php echo $quiz['quiz_id']; ?>" <?php echo ($selectedQuizId == $quiz['quiz_id']) ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($quiz['quiz_name']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="col-lg-3 col-md-6 col-sm-12">
+                                <label for="quiz_date_range" class="filter-label">Quiz Date Range</label>
+                                <input type="text" id="quiz_date_range" name="quiz_date_range" class="form-control form-control-sm datepicker" value="<?php echo htmlspecialchars($selectedQuizDateRange); ?>" placeholder="Select date range">
+                            </div>
+                            <div class="col-lg-3 col-md-6 col-sm-12">
+                                <label for="grade" class="filter-label">Grade</label>
+                                <select name="grade" id="grade" class="form-select form-select-sm">
+                                    <option value="">All Grades</option>
+                                    <?php foreach ($grades as $grade): ?>
+                                        <option value="<?php echo $grade['grade']; ?>" <?php echo ($selectedGrade == $grade['grade']) ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($grade['grade']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="col-lg-3 col-md-6 col-sm-12">
+                                <label for="city" class="filter-label">City</label>
+                                <select name="city" id="city" class="form-select form-select-sm">
+                                    <option value="">All Cities</option>
+                                    <?php foreach ($cities as $city): ?>
+                                        <option value="<?php echo htmlspecialchars($city['normalized_city']); ?>" <?php echo ($selectedCity == $city['normalized_city']) ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($city['city']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
                         </div>
 
                         <!-- Row 2 -->
-                        <div class="col-md-4">
-                            <label for="school" class="filter-label">School (Select Multiple)</label>
-                            <select name="school[]" id="school" class="custom-select" multiple="multiple">
-                                <?php foreach ($schools as $school): ?>
-                                    <option value="<?php echo htmlspecialchars($school['normalized_school']); ?>" <?php echo (in_array($school['normalized_school'], $selectedSchools)) ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($school['school']); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label for="school_text" class="filter-label">School (Text Search)</label>
-                            <input type="text" id="school_text" name="school_text" class="form-control" value="<?php echo htmlspecialchars($schoolText); ?>" placeholder="Enter school name...">
-                        </div>
-                        <div class="col-md-2">
-                            <label for="pass_status" class="filter-label">Status</label>
-                            <select name="pass_status" id="pass_status" class="custom-select">
-                                <option value="">All Statuses</option>
-                                <option value="passed" <?php echo ($passStatus === 'passed') ? 'selected' : ''; ?>>Passed (>=50%)</option>
-                                <option value="failed" <?php echo ($passStatus === 'failed') ? 'selected' : ''; ?>>Failed (<50%)</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label for="page_size" class="filter-label">Per Page</label>
-                            <select name="page_size" id="page_size" class="custom-select">
-                                <option value="10" <?php echo ($resultsPerPage == 10) ? 'selected' : ''; ?>>10 entries</option>
-                                <option value="20" <?php echo ($resultsPerPage == 20) ? 'selected' : ''; ?>>20 entries</option>
-                                <option value="50" <?php echo ($resultsPerPage == 50) ? 'selected' : ''; ?>>50 entries</option>
-                                <option value="100" <?php echo ($resultsPerPage == 100) ? 'selected' : ''; ?>>100 entries</option>
-                            </select>
+                        <div class="row g-2 mb-2">
+                            <div class="col-lg-4 col-md-6 col-sm-12">
+                                <label for="school" class="filter-label">School (Select Multiple)</label>
+                                <select name="school[]" id="school" class="form-select form-select-sm" multiple="multiple">
+                                    <?php foreach ($schools as $school): ?>
+                                        <option value="<?php echo htmlspecialchars($school['normalized_school']); ?>" <?php echo (in_array($school['normalized_school'], $selectedSchools)) ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($school['school']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="col-lg-4 col-md-6 col-sm-12">
+                                <label for="school_text" class="filter-label">School (Text Search)</label>
+                                <input type="text" id="school_text" name="school_text" class="form-control form-control-sm" value="<?php echo htmlspecialchars($schoolText); ?>" placeholder="Enter school name...">
+                            </div>
+                            <div class="col-lg-2 col-md-6 col-sm-12">
+                                <label for="pass_status" class="filter-label">Status</label>
+                                <select name="pass_status" id="pass_status" class="form-select form-select-sm">
+                                    <option value="">All Statuses</option>
+                                    <option value="passed" <?php echo ($passStatus === 'passed') ? 'selected' : ''; ?>>Passed (>=50%)</option>
+                                    <option value="failed" <?php echo ($passStatus === 'failed') ? 'selected' : ''; ?>>Failed (<50%)</option>
+                                </select>
+                            </div>
+                            <div class="col-lg-2 col-md-6 col-sm-12">
+                                <label for="page_size" class="filter-label">Per Page</label>
+                                <select name="page_size" id="page_size" class="form-select form-select-sm">
+                                    <option value="10" <?php echo ($resultsPerPage == 10) ? 'selected' : ''; ?>>10 entries</option>
+                                    <option value="20" <?php echo ($resultsPerPage == 20) ? 'selected' : ''; ?>>20 entries</option>
+                                    <option value="50" <?php echo ($resultsPerPage == 50) ? 'selected' : ''; ?>>50 entries</option>
+                                    <option value="100" <?php echo ($resultsPerPage == 100) ? 'selected' : ''; ?>>100 entries</option>
+                                </select>
+                            </div>
                         </div>
 
                         <!-- Advanced Filtering Fields Row 3 -->
-                        <div class="col-md-3">
-                            <label class="filter-label">Min Score</label>
-                            <input type="number" name="score_min" class="form-control" value="<?php echo $scoreMin !== null ? $scoreMin : ''; ?>" placeholder="Min score">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="filter-label">Max Score</label>
-                            <input type="number" name="score_max" class="form-control" value="<?php echo $scoreMax !== null ? $scoreMax : ''; ?>" placeholder="Max score">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="filter-label">Min Duration (Secs)</label>
-                            <input type="number" name="time_min" class="form-control" value="<?php echo $timeMin !== null ? $timeMin : ''; ?>" placeholder="Min secs">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="filter-label">Max Duration (Secs)</label>
-                            <input type="number" name="time_max" class="form-control" value="<?php echo $timeMax !== null ? $timeMax : ''; ?>" placeholder="Max secs">
+                        <div class="row g-2 mb-2">
+                            <div class="col-lg-3 col-md-6 col-sm-12">
+                                <label class="filter-label">Min Score</label>
+                                <input type="number" name="score_min" class="form-control form-control-sm" value="<?php echo $scoreMin !== null ? $scoreMin : ''; ?>" placeholder="Min score">
+                            </div>
+                            <div class="col-lg-3 col-md-6 col-sm-12">
+                                <label class="filter-label">Max Score</label>
+                                <input type="number" name="score_max" class="form-control form-control-sm" value="<?php echo $scoreMax !== null ? $scoreMax : ''; ?>" placeholder="Max score">
+                            </div>
+                            <div class="col-lg-3 col-md-6 col-sm-12">
+                                <label class="filter-label">Min Duration (Secs)</label>
+                                <input type="number" name="time_min" class="form-control form-control-sm" value="<?php echo $timeMin !== null ? $timeMin : ''; ?>" placeholder="Min secs">
+                            </div>
+                            <div class="col-lg-3 col-md-6 col-sm-12">
+                                <label class="filter-label">Max Duration (Secs)</label>
+                                <input type="number" name="time_max" class="form-control form-control-sm" value="<?php echo $timeMax !== null ? $timeMax : ''; ?>" placeholder="Max secs">
+                            </div>
                         </div>
 
-                        <div class="col-12 d-flex justify-content-end mt-3 gap-2">
-                            <button type="submit" class="btn btn-primary px-4"><iconify-icon icon="solar:magnifer-linear" class="align-middle me-1"></iconify-icon> Search / Filter</button>
-                            <a href="<?php echo $_SERVER['PHP_SELF']; ?>" class="btn btn-secondary px-4">Clear All</a>
+                        <div class="row mt-2">
+                            <div class="col-12 d-flex justify-content-end gap-2">
+                                <button type="submit" class="btn btn-primary btn-sm px-4"><iconify-icon icon="solar:magnifer-linear" class="align-middle me-1"></iconify-icon> Search / Filter</button>
+                                <a href="<?php echo $_SERVER['PHP_SELF']; ?>" class="btn btn-secondary btn-sm px-4">Clear All</a>
+                            </div>
                         </div>
                     </form>
                 </div>
