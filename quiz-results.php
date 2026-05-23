@@ -204,12 +204,12 @@ if ($scoreMax !== null) {
     $types .= "i";
 }
 if ($timeMin !== null) {
-    $whereClause[] = "TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time) >= ?";
+    $whereClause[] = "IF(q.duration_minutes > 0, LEAST(TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time), q.duration_minutes * 60), TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time)) >= ?";
     $params[] = $timeMin;
     $types .= "i";
 }
 if ($timeMax !== null) {
-    $whereClause[] = "TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time) <= ?";
+    $whereClause[] = "IF(q.duration_minutes > 0, LEAST(TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time), q.duration_minutes * 60), TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time)) <= ?";
     $params[] = $timeMax;
     $types .= "i";
 }
@@ -220,7 +220,7 @@ if ($passStatus === 'passed') {
 }
 
 $sql = "SELECT uqa.*, q.quiz_name, u.first_name, u.last_name, u.school, u.grade, u.city,
-               TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time) as time_taken,
+               IF(q.duration_minutes > 0, LEAST(TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time), q.duration_minutes * 60), TIMESTAMPDIFF(SECOND, uqa.start_time, uqa.end_time)) as time_taken,
                (SELECT SUM(marks) FROM questions WHERE quiz_id = q.quiz_id) as total_possible_score
         FROM user_quiz_attempts uqa
         JOIN quizzes q ON uqa.quiz_id = q.quiz_id
@@ -365,7 +365,6 @@ $quizResults = array_slice($fullQuizResults, $offset, $resultsPerPage);
     <title>Quiz Results - Magic Of Skills</title>
     <?php include "include/meta.php" ?>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.css">
@@ -373,30 +372,31 @@ $quizResults = array_slice($fullQuizResults, $offset, $resultsPerPage);
     <style>
         body {
             font-family: 'Poppins', sans-serif;
-            background-color: #f0f4f8;
-            color: #333;
+            background-color: #f1f5f9;
+            color: #334155;
+            font-size: 0.85rem;
         }
         
         /* Glassmorphism theme cards */
         .glass-card {
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            margin-bottom: 1.5rem;
-            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            padding: 0.85rem 1rem;
+            box-shadow: 0 4px 16px 0 rgba(31, 38, 135, 0.02);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            margin-bottom: 0.85rem;
+            transition: all 0.2s ease;
         }
         .glass-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.08);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px 0 rgba(31, 38, 135, 0.04);
         }
         
         /* Auto Refresh progress bar */
         .refresh-progress-container {
-            height: 4px;
+            height: 3px;
             width: 100%;
-            background-color: #e9ecef;
+            background-color: #e2e8f0;
             position: fixed;
             top: 0;
             left: 0;
@@ -415,28 +415,35 @@ $quizResults = array_slice($fullQuizResults, $offset, $resultsPerPage);
             align-items: center;
             justify-content: space-between;
             height: 100%;
+            padding: 0.25rem 0.5rem;
         }
         .kpi-icon {
-            font-size: 2.2rem;
-            padding: 12px;
-            border-radius: 10px;
-            background-color: rgba(13, 110, 253, 0.1);
+            font-size: 1.35rem;
+            padding: 8px;
+            border-radius: 8px;
+            background-color: rgba(13, 110, 253, 0.08);
             color: #0d6efd;
             display: flex;
             align-items: center;
             justify-content: center;
+            width: 38px;
+            height: 38px;
         }
         .kpi-value {
-            font-size: 1.8rem;
+            font-size: 1.35rem;
             font-weight: 700;
             margin-bottom: 0;
+            color: #0f172a;
+            line-height: 1.2;
         }
         .kpi-title {
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: #6c757d;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #64748b;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            display: block;
+            margin-top: 2px;
         }
         
         /* Top 3 Podium layout */
@@ -444,119 +451,123 @@ $quizResults = array_slice($fullQuizResults, $offset, $resultsPerPage);
             display: flex;
             justify-content: center;
             align-items: flex-end;
-            min-height: 200px;
-            padding: 10px 0;
-            gap: 15px;
+            min-height: 125px;
+            padding: 5px 0;
+            gap: 10px;
         }
         .podium-step {
             display: flex;
             flex-direction: column;
             align-items: center;
-            width: 30%;
+            width: 32%;
             position: relative;
         }
         .podium-rank {
             width: 100%;
             text-align: center;
-            border-top-left-radius: 8px;
-            border-top-right-radius: 8px;
-            padding: 10px 5px;
+            border-top-left-radius: 6px;
+            border-top-right-radius: 6px;
+            padding: 3px 2px;
             color: white;
             font-weight: 700;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            font-size: 0.75rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         .podium-avatar {
-            width: 50px;
-            height: 50px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
-            background-color: #e9ecef;
+            background-color: #f1f5f9;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: 700;
-            margin-bottom: 8px;
-            border: 3px solid;
-            font-size: 1.1rem;
+            margin-bottom: 5px;
+            border: 2px solid;
+            font-size: 0.8rem;
         }
-        .step-1 { height: 110px; background: linear-gradient(135deg, #ffd700, #ffae00); }
+        .step-1 { height: 65px; background: linear-gradient(135deg, #ffd700, #ffae00); }
         .avatar-1 { border-color: #ffd700; color: #ffae00; background-color: #fffbeb; }
-        .step-2 { height: 85px; background: linear-gradient(135deg, #c0c0c0, #9ca3af); }
+        .step-2 { height: 48px; background: linear-gradient(135deg, #c0c0c0, #9ca3af); }
         .avatar-2 { border-color: #c0c0c0; color: #4b5563; background-color: #f3f4f6; }
-        .step-3 { height: 65px; background: linear-gradient(135deg, #cd7f32, #b45309); }
+        .step-3 { height: 35px; background: linear-gradient(135deg, #cd7f32, #b45309); }
         .avatar-3 { border-color: #cd7f32; color: #b45309; background-color: #fff7ed; }
         
         .podium-name {
-            font-size: 0.85rem;
+            font-size: 0.72rem;
             font-weight: 600;
             text-align: center;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             width: 100%;
+            color: #334155;
         }
         .podium-score {
-            font-size: 0.75rem;
+            font-size: 0.65rem;
             font-weight: 700;
-            color: #6c757d;
+            color: #64748b;
         }
         
         /* Rank Medal Badges */
         .medal-badge {
-            width: 28px;
-            height: 28px;
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 0.85rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-size: 0.72rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
         }
         .medal-1 { background-color: #ffd700; color: #7f6a00; }
         .medal-2 { background-color: #c0c0c0; color: #444; }
         .medal-3 { background-color: #cd7f32; color: #fff; }
-        .medal-default { background-color: #e9ecef; color: #495057; }
+        .medal-default { background-color: #f1f5f9; color: #475569; }
         
         /* Results Table formatting */
         .results-table {
             width: 100%;
             border-collapse: separate;
-            border-spacing: 0 8px;
+            border-spacing: 0 4px;
         }
         .results-table th {
-            background-color: #f8f9fa;
+            background-color: #f8fafc;
             border: none;
             font-weight: 600;
-            color: #495057;
-            padding: 12px 16px;
+            color: #475569;
+            padding: 8px 10px;
+            font-size: 0.78rem;
         }
         .results-table td {
             background-color: #ffffff;
             border: none;
-            padding: 16px;
+            padding: 8px 10px;
             vertical-align: middle;
-            border-top: 1px solid #dee2e6;
+            border-top: 1px solid #e2e8f0;
+            font-size: 0.8rem;
         }
         .results-table tbody tr {
-            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
-            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.01);
+            transition: transform 0.15s, box-shadow 0.15s;
         }
         .results-table tbody tr:hover {
-            transform: scale(1.005);
-            box-shadow: 0 5px 12px rgba(0,0,0,0.05);
+            transform: scale(1.002);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
         }
         .score-cell {
             font-weight: 700;
-            color: #28a745;
+            color: #16a34a;
         }
         .time-taken {
             font-weight: 600;
-            color: #6c757d;
+            color: #64748b;
         }
         .no-results {
             text-align: center;
-            padding: 2rem;
-            color: #6c757d;
+            padding: 1.5rem;
+            color: #64748b;
             font-style: italic;
         }
         
@@ -565,68 +576,95 @@ $quizResults = array_slice($fullQuizResults, $offset, $resultsPerPage);
             width: 100% !important;
         }
         .select2-container--default .select2-selection--multiple {
-            border: 1px solid #ced4da;
-            border-radius: 5px;
-            min-height: 38px;
-            padding: 2px 6px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            min-height: 32px;
+            padding: 1px 4px;
+            font-size: 0.8rem;
         }
         .select2-container--default.select2-container--focus .select2-selection--multiple {
-            border-color: #86b7fe;
+            border-color: #3b82f6;
             outline: 0;
-            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
         }
         .select2-container--default .select2-selection--multiple .select2-selection__choice {
             background-color: #0d6efd;
             border: none;
             color: #fff;
-            border-radius: 3px;
-            padding: 2px 8px;
-            margin-top: 4px;
+            border-radius: 4px;
+            padding: 1px 6px;
+            margin-top: 2px;
+            font-size: 0.72rem;
         }
         .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
             color: #fff;
-            margin-right: 5px;
+            margin-right: 4px;
             background: transparent;
             border: none;
         }
         .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
-            color: #ffc107;
+            color: #f59e0b;
         }
         
         /* Custom checkboxes in School select2 dropdown options */
         .select2-multiple-checkboxes .select2-results__option {
             position: relative;
-            padding-left: 35px !important;
+            padding-left: 30px !important;
+            font-size: 0.8rem;
         }
         .select2-multiple-checkboxes .select2-results__option::before {
             content: "";
             position: absolute;
-            left: 12px;
+            left: 8px;
             top: 50%;
             transform: translateY(-50%);
-            width: 16px;
-            height: 16px;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
+            width: 14px;
+            height: 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 3px;
             background-color: #fff;
-            transition: all 0.15s ease-in-out;
+            transition: all 0.1s ease-in-out;
         }
-        .select2-multiple-checkboxes .select2-results__option[aria-selected=true]::before {
-            background-color: #0d6efd;
-            border-color: #0d6efd;
+        .select2-multiple-checkboxes .select2-results__option--selected::before {
+            background-color: #0d6efd !important;
+            border-color: #0d6efd !important;
         }
-        .select2-multiple-checkboxes .select2-results__option[aria-selected=true]::after {
-            content: "✓";
+        .select2-multiple-checkboxes .select2-results__option--selected::after {
+            content: "✓" !important;
             position: absolute;
-            left: 16px;
+            left: 11px;
             top: 50%;
             transform: translateY(-50%);
-            color: #fff;
-            font-size: 11px;
+            color: #fff !important;
+            font-size: 10px;
             font-weight: bold;
+            display: block !important;
+        }
+        .select2-container--default .select2-results__option--selected {
+            display: block !important;
         }
         .select2-container--default .select2-results__option[aria-selected=true] {
             display: block !important;
+        }
+        
+        /* Compact Form Controls */
+        .form-control, .form-select, .custom-select {
+            height: 32px;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            box-shadow: none !important;
+        }
+        .form-control:focus, .form-select:focus, .custom-select:focus {
+            border-color: #3b82f6 !important;
+        }
+        .filter-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 2px;
+            display: block;
         }
         
         /* Visual view switch grid layout */
@@ -635,21 +673,21 @@ $quizResults = array_slice($fullQuizResults, $offset, $resultsPerPage);
         }
         .grid-student-card {
             background: #fff;
-            border-radius: 12px;
-            padding: 1.25rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 0.85rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+            border: 1px solid #e2e8f0;
             height: 100%;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.15s, box-shadow 0.15s;
             position: relative;
         }
         .grid-student-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+            transform: translateY(-2px);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.04);
         }
         .grid-student-avatar {
-            width: 48px;
-            height: 48px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             background-color: #0d6efd;
             color: white;
@@ -657,20 +695,12 @@ $quizResults = array_slice($fullQuizResults, $offset, $resultsPerPage);
             align-items: center;
             justify-content: center;
             font-weight: 700;
-            font-size: 1.2rem;
-            margin-right: 12px;
+            font-size: 0.95rem;
+            margin-right: 8px;
         }
         .apply-filters-btn {
-            background-color: #007bff;
-            color: #ffffff;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-        .apply-filters-btn:hover {
-            background-color: #0056b3;
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
         }
         
         /* Print Report Optimized layout */
@@ -702,24 +732,24 @@ $quizResults = array_slice($fullQuizResults, $offset, $resultsPerPage);
         <div class="refresh-progress-container"><div id="refreshProgressBar" class="refresh-progress-bar"></div></div>
 
         <div class="dashboard-main-body">
-            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                 <div>
-                    <h2 class="mb-1 fw-bold text-dark">Quiz Results Analytics</h2>
-                    <p class="text-muted mb-0">Executive dashboard for quiz performance tracking</p>
+                    <h4 class="mb-0 fw-bold text-dark fs-5">Quiz Results Analytics</h4>
+                    <p class="text-muted mb-0" style="font-size: 0.72rem;">Executive dashboard for quiz performance tracking</p>
                 </div>
                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <div class="form-check form-switch bg-white px-3 py-2 rounded shadow-sm border mb-0">
-                        <input class="form-check-input" type="checkbox" id="autoRefreshSwitch">
-                        <label class="form-check-label text-dark fw-medium ms-1" for="autoRefreshSwitch">Live Update (30s)</label>
+                    <div class="form-check form-switch bg-white px-2 py-1 rounded border mb-0 d-flex align-items-center" style="height: 32px; font-size: 0.8rem; padding-left: 2.25rem;">
+                        <input class="form-check-input" type="checkbox" id="autoRefreshSwitch" style="cursor: pointer;">
+                        <label class="form-check-label text-dark fw-semibold ms-1" for="autoRefreshSwitch" style="cursor: pointer; user-select: none;">Live Update (30s)</label>
                     </div>
-                    <button class="btn btn-outline-secondary bg-white text-dark shadow-sm border" id="printReport">
-                        <iconify-icon icon="solar:printer-minimalistic-linear" class="align-middle me-1"></iconify-icon> Print Report
+                    <button class="btn btn-outline-secondary bg-white text-dark border btn-sm d-inline-flex align-items-center" id="printReport" style="height: 32px; font-size: 0.8rem; padding: 0 10px;">
+                        <iconify-icon icon="solar:printer-minimalistic-linear" class="align-middle me-1" style="font-size: 1rem;"></iconify-icon> Print Report
                     </button>
-                    <div class="btn-group shadow-sm border" role="group">
-                        <button type="button" class="btn btn-primary" id="viewModeTable" title="Table View">
+                    <div class="btn-group border btn-group-sm" role="group" style="height: 32px;">
+                        <button type="button" class="btn btn-primary d-inline-flex align-items-center" id="viewModeTable" title="Table View" style="padding: 0 10px; font-size: 0.95rem;">
                             <iconify-icon icon="solar:list-linear"></iconify-icon>
                         </button>
-                        <button type="button" class="btn btn-light bg-white text-dark" id="viewModeGrid" title="Card Grid View">
+                        <button type="button" class="btn btn-light bg-white text-dark d-inline-flex align-items-center" id="viewModeGrid" title="Card Grid View" style="padding: 0 10px; font-size: 0.95rem;">
                             <iconify-icon icon="solar:widget-linear"></iconify-icon>
                         </button>
                     </div>
@@ -1172,7 +1202,6 @@ $quizResults = array_slice($fullQuizResults, $offset, $resultsPerPage);
     </main>
 
     <?php include "include/script.php" ?>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.js"></script>
     <script>
