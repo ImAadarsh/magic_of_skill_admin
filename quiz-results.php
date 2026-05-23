@@ -6,72 +6,120 @@ if (!$connect) {
     die("Connection failed: " . mysqli_connect_error());
 }
 
-// Fetch all quizzes for the filter
-$quizzesSql = "SELECT quiz_id, quiz_name FROM quizzes ORDER BY creation_date DESC";
-$quizzesResult = $connect->query($quizzesSql);
-$quizzes = $quizzesResult->fetch_all(MYSQLI_ASSOC);
-
-// Fetch all schools for the filter
-$schoolsSql = "SELECT DISTINCT school FROM users WHERE school IS NOT NULL AND school != '' ORDER BY school";
-$schoolsResult = $connect->query($schoolsSql);
-$schools = $schoolsResult->fetch_all(MYSQLI_ASSOC);
-
-// Fetch all grades for the filter
-$gradesSql = "SELECT DISTINCT grade FROM users WHERE grade IS NOT NULL AND grade != '' ORDER BY grade";
-$gradesResult = $connect->query($gradesSql);
-$grades = $gradesResult->fetch_all(MYSQLI_ASSOC);
-
-// Fetch all cities for the filter
-$citiesSql = "SELECT DISTINCT city FROM users WHERE city IS NOT NULL AND city != '' ORDER BY city";
-$citiesResult = $connect->query($citiesSql);
-$cities = $citiesResult->fetch_all(MYSQLI_ASSOC);
-
-// Apply filters and fetch results
+// 1. Parse all filter parameters from $_GET
 $whereClause = [];
 $params = [];
 $types = "";
 
+$selectedQuizId = !empty($_GET['quiz_id']) ? $_GET['quiz_id'] : null;
+$selectedQuizDate = !empty($_GET['quiz_date']) ? $_GET['quiz_date'] : null;
+$selectedSchools = !empty($_GET['school']) ? (is_array($_GET['school']) ? array_filter($_GET['school']) : [$_GET['school']]) : [];
+$schoolText = !empty($_GET['school_text']) ? trim($_GET['school_text']) : null;
+$selectedGrade = !empty($_GET['grade']) ? $_GET['grade'] : null;
+$selectedCity = !empty($_GET['city']) ? $_GET['city'] : null;
+
+// 2. Fetch all quizzes for the filter (independent)
+$quizzesSql = "SELECT quiz_id, quiz_name FROM quizzes ORDER BY creation_date DESC";
+$quizzesResult = $connect->query($quizzesSql);
+$quizzes = $quizzesResult ? $quizzesResult->fetch_all(MYSQLI_ASSOC) : [];
+
+// 3. Fetch all grades for the filter (independent)
+$gradesSql = "SELECT DISTINCT grade FROM users WHERE grade IS NOT NULL AND grade != '' ORDER BY grade";
+$gradesResult = $connect->query($gradesSql);
+$grades = $gradesResult ? $gradesResult->fetch_all(MYSQLI_ASSOC) : [];
+
+// 4. Fetch all cities for the filter with case-insensitive and trimmed normalization (fuzzy logic)
+$citiesSql = "SELECT MIN(city) as city, TRIM(LOWER(city)) as normalized_city 
+              FROM users 
+              WHERE city IS NOT NULL AND city != '' 
+              GROUP BY normalized_city 
+              ORDER BY city";
+$citiesResult = $connect->query($citiesSql);
+$cities = $citiesResult ? $citiesResult->fetch_all(MYSQLI_ASSOC) : [];
+
+// 5. Fetch schools dynamically, filtered by OTHER active filters (quiz_id, quiz_date, grade, city)
+// This ensures the school list reflects only schools that took the test under these conditions.
+$schoolWhere = [];
+$schoolParams = [];
+$schoolTypes = "";
+
+if ($selectedQuizId) {
+    $schoolWhere[] = "uqa.quiz_id = ?";
+    $schoolParams[] = $selectedQuizId;
+    $schoolTypes .= "i";
+}
+if ($selectedQuizDate) {
+    $schoolWhere[] = "DATE(q.creation_date) = ?";
+    $schoolParams[] = $selectedQuizDate;
+    $schoolTypes .= "s";
+}
+if ($selectedGrade) {
+    $schoolWhere[] = "u.grade = ?";
+    $schoolParams[] = $selectedGrade;
+    $schoolTypes .= "s";
+}
+if ($selectedCity) {
+    $schoolWhere[] = "TRIM(LOWER(u.city)) = ?";
+    $schoolParams[] = trim(strtolower($selectedCity));
+    $schoolTypes .= "s";
+}
+
+$schoolsSql = "SELECT MIN(u.school) as school, TRIM(LOWER(u.school)) as normalized_school
+               FROM user_quiz_attempts uqa
+               JOIN users u ON uqa.user_id = u.id
+               JOIN quizzes q ON uqa.quiz_id = q.quiz_id
+               WHERE u.school IS NOT NULL AND u.school != ''";
+
+if (!empty($schoolWhere)) {
+    $schoolsSql .= " AND " . implode(" AND ", $schoolWhere);
+}
+$schoolsSql .= " GROUP BY normalized_school ORDER BY school";
+
+$schoolsStmt = $connect->prepare($schoolsSql);
+if ($schoolsStmt) {
+    if (!empty($schoolTypes) && !empty($schoolParams)) {
+        $schoolsStmt->bind_param($schoolTypes, ...$schoolParams);
+    }
+    $schoolsStmt->execute();
+    $schoolsResult = $schoolsStmt->get_result();
+    $schools = $schoolsResult->fetch_all(MYSQLI_ASSOC);
+} else {
+    $schools = [];
+}
+
+// 6. Build the WHERE clause for the main user attempts query
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    if (!empty($_GET['quiz_id'])) {
+    if ($selectedQuizId) {
         $whereClause[] = "uqa.quiz_id = ?";
-        $params[] = $_GET['quiz_id'];
+        $params[] = $selectedQuizId;
         $types .= "i";
     }
-    if (!empty($_GET['quiz_date'])) {
+    if ($selectedQuizDate) {
         $whereClause[] = "DATE(q.creation_date) = ?";
-        $params[] = $_GET['quiz_date'];
+        $params[] = $selectedQuizDate;
         $types .= "s";
     }
-    if (!empty($_GET['school'])) {
-        if (is_array($_GET['school'])) {
-            $selectedSchools = array_filter($_GET['school']);
-            if (!empty($selectedSchools)) {
-                $schoolPlaceholders = implode(',', array_fill(0, count($selectedSchools), '?'));
-                $whereClause[] = "u.school IN ($schoolPlaceholders)";
-                foreach ($selectedSchools as $sch) {
-                    $params[] = $sch;
-                    $types .= "s";
-                }
-            }
-        } else {
-            $whereClause[] = "u.school = ?";
-            $params[] = $_GET['school'];
+    if (!empty($selectedSchools)) {
+        $placeholders = implode(',', array_fill(0, count($selectedSchools), '?'));
+        $whereClause[] = "TRIM(LOWER(u.school)) IN ($placeholders)";
+        foreach ($selectedSchools as $sch) {
+            $params[] = trim(strtolower($sch));
             $types .= "s";
         }
     }
-    if (!empty($_GET['school_text'])) {
-        $whereClause[] = "u.school LIKE ?";
-        $params[] = "%" . $_GET['school_text'] . "%";
+    if ($schoolText) {
+        $whereClause[] = "TRIM(LOWER(u.school)) LIKE ?";
+        $params[] = "%" . trim(strtolower($schoolText)) . "%";
         $types .= "s";
     }
-    if (!empty($_GET['grade'])) {
+    if ($selectedGrade) {
         $whereClause[] = "u.grade = ?";
-        $params[] = $_GET['grade'];
+        $params[] = $selectedGrade;
         $types .= "s";
     }
-    if (!empty($_GET['city'])) {
-        $whereClause[] = "u.city = ?";
-        $params[] = $_GET['city'];
+    if ($selectedCity) {
+        $whereClause[] = "TRIM(LOWER(u.city)) = ?";
+        $params[] = trim(strtolower($selectedCity));
         $types .= "s";
     }
 }
@@ -210,6 +258,38 @@ $quizResults = array_slice($fullQuizResults, $offset, $resultsPerPage);
         .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
             color: #ffc107;
         }
+        /* Custom checkboxes in School select2 dropdown options */
+        #select2-school-results .select2-results__option {
+            position: relative;
+            padding-left: 35px !important;
+        }
+        #select2-school-results .select2-results__option::before {
+            content: "";
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            background-color: #fff;
+            transition: all 0.15s ease-in-out;
+        }
+        #select2-school-results .select2-results__option[aria-selected=true]::before {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+        #select2-school-results .select2-results__option[aria-selected=true]::after {
+            content: "✓";
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #fff;
+            font-size: 11px;
+            font-weight: bold;
+        }
         .dashboard-main-body {
             padding: 2rem;
         }
@@ -335,7 +415,7 @@ $quizResults = array_slice($fullQuizResults, $offset, $resultsPerPage);
                         <select name="city" id="city" class="custom-select">
                             <option value="">All Cities</option>
                             <?php foreach ($cities as $city): ?>
-                                <option value="<?php echo $city['city']; ?>" <?php echo (isset($_GET['city']) && $_GET['city'] == $city['city']) ? 'selected' : ''; ?>>
+                                <option value="<?php echo htmlspecialchars($city['normalized_city']); ?>" <?php echo (isset($_GET['city']) && $_GET['city'] == $city['normalized_city']) ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($city['city']); ?>
                                 </option>
                             <?php endforeach; ?>
@@ -347,7 +427,7 @@ $quizResults = array_slice($fullQuizResults, $offset, $resultsPerPage);
                         <label for="school" class="filter-label">School (Select Multiple)</label>
                         <select name="school[]" id="school" class="custom-select" multiple="multiple">
                             <?php foreach ($schools as $school): ?>
-                                <option value="<?php echo $school['school']; ?>" <?php echo (isset($_GET['school']) && (is_array($_GET['school']) ? in_array($school['school'], $_GET['school']) : $_GET['school'] == $school['school'])) ? 'selected' : ''; ?>>
+                                <option value="<?php echo htmlspecialchars($school['normalized_school']); ?>" <?php echo (isset($_GET['school']) && (is_array($_GET['school']) ? in_array($school['normalized_school'], $_GET['school']) : $_GET['school'] == $school['normalized_school'])) ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($school['school']); ?>
                                 </option>
                             <?php endforeach; ?>
@@ -431,7 +511,8 @@ $quizResults = array_slice($fullQuizResults, $offset, $resultsPerPage);
 
             $('#school').select2({
                 placeholder: "Select schools",
-                allowClear: true
+                allowClear: true,
+                closeOnSelect: false
             });
 
             $('.results-table').DataTable({
