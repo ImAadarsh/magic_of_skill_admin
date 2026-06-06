@@ -17,7 +17,7 @@
     </div>
     <div class="col-auto">
       <div class="d-flex flex-wrap align-items-center gap-3">
-        <button type="button" id="themeToggle" class="btn btn-light w-40-px h-40-px rounded-circle d-flex justify-content-center align-items-center">
+        <button type="button" id="themeToggle" data-theme-toggle class="btn btn-light w-40-px h-40-px rounded-circle d-flex justify-content-center align-items-center">
           <iconify-icon icon="tabler:sun" class="icon"></iconify-icon>
         </button>
 

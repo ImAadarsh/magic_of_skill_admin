@@ -45,10 +45,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["csv_file"])) {
                 $userStatus = "Existing user found (ID: $user_id)";
             } else {
                 // 2. Create user via API
+                $placeholder_email = empty($email) ? $mobile . "@magicofskills.com" : $email;
                 $regData = array(
                     'first_name' => $first_name,
                     'last_name' => $last_name,
-                    'email' => $email,
+                    'email' => $placeholder_email,
                     'mobile' => $mobile,
                     'school' => $school,
                     'grade' => $grade,
@@ -73,8 +74,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["csv_file"])) {
                     }
                 } else {
                     $errMsg = isset($responseArr['message']) ? $responseArr['message'] : "Unknown API error";
-                    if (empty($responseArr) && !empty($apiResponse)) {
-                        $errMsg = "Raw API Response: " . htmlspecialchars($apiResponse);
+                    if (!empty($apiResponse)) {
+                        $errMsg .= " | Response: " . htmlspecialchars($apiResponse);
                     }
                     $report[] = ["status" => "error", "message" => "Failed to create user $mobile: $errMsg"];
                     continue;

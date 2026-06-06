@@ -85,7 +85,7 @@ function updateThemeOnHtmlEl({ theme }) {
 /**
 * 1. Grab what we need from the DOM and system settings on page load
 */
-const button = document.querySelector("[data-theme-toggle]");
+const button = document.querySelector("[data-theme-toggle]") || document.getElementById("themeToggle");
 const localStorageTheme = localStorage.getItem("theme");
 
 /**
@@ -96,21 +96,21 @@ let currentThemeSetting = calculateSettingAsThemeString({ localStorageTheme });
 /**
 * 3. Update the theme setting and button text accoridng to current settings
 */
-updateButton({ buttonEl: button, isDark: currentThemeSetting === "dark" });
-updateThemeOnHtmlEl({ theme: currentThemeSetting });
+if (button) {
+  updateThemeOnHtmlEl({ theme: currentThemeSetting });
 
-/**
-* 4. Add an event listener to toggle the theme
-*/
-button.addEventListener("click", (event) => {
-  const newTheme = currentThemeSetting === "dark" ? "light" : "dark";
+  /**
+  * 4. Add an event listener to toggle the theme
+  */
+  button.addEventListener("click", () => {
+    const newTheme = currentThemeSetting === "dark" ? "light" : "dark";
 
-  localStorage.setItem("theme", newTheme);
-  updateButton({ buttonEl: button, isDark: newTheme === "dark" });
-  updateThemeOnHtmlEl({ theme: newTheme });
+    localStorage.setItem("theme", newTheme);
+    updateThemeOnHtmlEl({ theme: newTheme });
 
-  currentThemeSetting = newTheme;
-}); 
+    currentThemeSetting = newTheme;
+  });
+}
 
 // =========================== Table Header Checkbox checked all js Start ================================
 $('#selectAll').on('change', function () {

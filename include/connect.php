@@ -6,10 +6,10 @@ if (defined('CONNECT_INCLUDED')) {
 }
 define('CONNECT_INCLUDED', true);
 
-$host = "82.25.121.166";
-$user = "u954141192_mos";
-$password = "Mos@2024";
-$dbname = "u954141192_mos";
+$host = "82.25.121.184";
+$user = "u262009927_mos";
+$password = "07791@EndeavourDigital";
+$dbname = "u262009927_mos";
 
 // Set connection options before connecting
 $connect = mysqli_init();

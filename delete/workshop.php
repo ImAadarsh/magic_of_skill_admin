@@ -2,6 +2,8 @@
 include '../include/session.php';
 include '../include/connect.php';
 
+header('Content-Type: application/json');
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['workshopId'])) {
     $workshopId = intval($_POST['workshopId']);
 

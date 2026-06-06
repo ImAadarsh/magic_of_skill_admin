@@ -176,6 +176,9 @@ $trainers = $connect->query("SELECT * FROM trainers ORDER BY name")->fetch_all(M
     <?php include "include/meta.php" ?>
     <style>
         .table-responsive { overflow-x: auto; }
+        .table td iconify-icon {
+            pointer-events: none;
+        }
     </style>
 </head>
 
@@ -412,125 +415,92 @@ $trainers = $connect->query("SELECT * FROM trainers ORDER BY name")->fetch_all(M
     </main>
 
     <?php include "include/script.php" ?>
-
-    <!-- Excel export library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
 
     <script>
-        // Toggle filters on mobile
-        document.getElementById('showFilters').addEventListener('click', function () {
-            var filterContainer = document.getElementById('filterContainer');
-            filterContainer.classList.toggle('d-none');
-            filterContainer.classList.toggle('d-block');
-        });
-
-        // Excel download functionality
-        document.getElementById('downloadExcel').addEventListener('click', function () {
-            var table = document.querySelector('table');
-            var wb = XLSX.utils.table_to_book(table, { sheet: "Workshops" });
-            XLSX.writeFile(wb, 'workshops.xlsx');
-        });
-
-        // Toggle workshop status
-        $('.toggle-status').on('click', function () {
-            const workshopId = $(this).data('workshopid');
-            const status = $(this).data('status');
-            const statusText = status === 1 ? 'mark as completed' : 'mark as uncompleted';
-
-            Swal.fire({
-                title: 'Change Workshop Status?',
-                text: `Are you sure you want to ${statusText}?`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, change it!'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    $.ajax({
-                        url: 'update/workshop-status.php',
-                        type: 'POST',
-                        data: { workshopId: workshopId, status: status },
-                        dataType: 'json',
-                        success: function (response) {
-                            if (response.status === 'success') {
-                                Swal.fire(
-                                    'Updated!',
-                                    response.message,
-                                    'success'
-                                ).then(() => {
-                                    location.reload();
-                                });
-                            } else {
-                                Swal.fire(
-                                    'Error!',
-                                    response.message,
-                                    'error'
-                                );
-                            }
-                        },
-                        error: function (jqXHR, textStatus, errorThrown) {
-                            console.error("AJAX Error:", textStatus, errorThrown);
-                            Swal.fire(
-                                'Error!',
-                                'An error occurred while updating the status.',
-                                'error'
-                            );
-                        }
-                    });
-                }
+        $(document).ready(function () {
+            document.getElementById('downloadExcel').addEventListener('click', function () {
+                var table = document.querySelector('table');
+                var wb = XLSX.utils.table_to_book(table, { sheet: "Workshops" });
+                XLSX.writeFile(wb, 'workshops.xlsx');
             });
-        });
 
-        // Delete workshop functionality
-        $('.delete-workshop').on('click', function () {
-            const workshopId = $(this).data('workshopid');
+            // Toggle workshop completion status
+            $(document).on('click', '.toggle-status', function () {
+                const workshopId = $(this).data('workshopid');
+                const status = parseInt($(this).data('status'), 10);
+                const statusText = status === 1 ? 'mark as completed' : 'mark as uncompleted';
 
-            Swal.fire({
-                title: 'Are you sure?',
-                text: "You won't be able to revert this!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, delete it!'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    $.ajax({
-                        url: 'delete/workshop.php',
-                        type: 'POST',
-                        data: { workshopId: workshopId },
-                        dataType: 'json',
-                        success: function (response) {
-                            if (response.status === 'success') {
-                                Swal.fire(
-                                    'Deleted!',
-                                    response.message,
-                                    'success'
-                                ).then(() => {
-                                    // Remove the workshop row from the table
-                                    $(this).closest('tr').remove();
-                                    location.reload(); // Reload the page to reflect the changes
-                                });
-                            } else {
-                                Swal.fire(
-                                    'Error!',
-                                    response.message,
-                                    'error'
-                                );
+                Swal.fire({
+                    title: 'Change Workshop Status?',
+                    text: 'Are you sure you want to ' + statusText + '?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Yes, change it!'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $.ajax({
+                            url: 'update/workshop-status.php',
+                            type: 'POST',
+                            data: { workshopId: workshopId, status: status },
+                            dataType: 'json',
+                            success: function (response) {
+                                if (response.status === 'success') {
+                                    Swal.fire('Updated!', response.message, 'success').then(() => {
+                                        location.reload();
+                                    });
+                                } else {
+                                    Swal.fire('Error!', response.message, 'error');
+                                }
+                            },
+                            error: function (jqXHR, textStatus, errorThrown) {
+                                console.error('AJAX Error:', textStatus, errorThrown);
+                                console.log('Response Text:', jqXHR.responseText);
+                                Swal.fire('Error!', 'An error occurred while updating the status.', 'error');
                             }
-                        },
-                        error: function (jqXHR, textStatus, errorThrown) {
-                            console.error("AJAX Error:", textStatus, errorThrown);
-                            console.log("Response Text:", jqXHR.responseText);
-                            Swal.fire(
-                                'Error!',
-                                'An error occurred while deleting the workshop. Please check the console for details.',
-                                'error'
-                            );
-                        }
-                    });
-                }
+                        });
+                    }
+                });
+            });
+
+            // Delete workshop
+            $(document).on('click', '.delete-workshop', function () {
+                const workshopId = $(this).data('workshopid');
+
+                Swal.fire({
+                    title: 'Are you sure?',
+                    text: "You won't be able to revert this!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Yes, delete it!'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $.ajax({
+                            url: 'delete/workshop.php',
+                            type: 'POST',
+                            data: { workshopId: workshopId },
+                            dataType: 'json',
+                            success: function (response) {
+                                if (response.status === 'success') {
+                                    Swal.fire('Deleted!', response.message, 'success').then(() => {
+                                        location.reload();
+                                    });
+                                } else {
+                                    Swal.fire('Error!', response.message, 'error');
+                                }
+                            },
+                            error: function (jqXHR, textStatus, errorThrown) {
+                                console.error('AJAX Error:', textStatus, errorThrown);
+                                console.log('Response Text:', jqXHR.responseText);
+                                Swal.fire('Error!', 'An error occurred while deleting the workshop.', 'error');
+                            }
+                        });
+                    }
+                });
             });
         });
     </script>
