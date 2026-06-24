@@ -126,6 +126,9 @@
               Results</a>
           </li>
           <li>
+            <a href="quiz-student-scores.php"><i class="ri-circle-fill circle-icon text-primary-600 w-auto"></i> Student Cumulative Scores</a>
+          </li>
+          <li>
             <a href="add-quiz.php"><i class="ri-circle-fill circle-icon text-danger-main w-auto"></i> Add Quiz</a>
           </li>
         </ul>

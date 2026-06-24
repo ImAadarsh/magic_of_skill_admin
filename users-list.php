@@ -2,6 +2,7 @@
 
 include 'include/session.php';
 include 'include/connect.php';
+include 'include/users-filters.php';
 
 if (!$connect) {
     die("Connection failed: " . mysqli_connect_error());
@@ -27,98 +28,10 @@ if ($gradesResult) {
 }
 
 // Apply filters
-$whereClause = [];
-$params = [];
-$types = "";
-
-// User type filter
-if (isset($_GET['user_type']) && $_GET['user_type'] != '') {
-    $whereClause[] = "user_type = ?";
-    $params[] = $_GET['user_type'];
-    $types .= "s";
-    $types .= "s";
-}
-
-// Grade filter
-if (isset($_GET['grade']) && $_GET['grade'] != '') {
-    $whereClause[] = "grade = ?";
-    $params[] = $_GET['grade'];
-    $types .= "s";
-}
-
-// Hide Incomplete Users filter
-if (isset($_GET['hide_incomplete']) && $_GET['hide_incomplete'] == '1') {
-    $whereClause[] = "(email IS NOT NULL AND email != '' AND first_name IS NOT NULL AND first_name != '')";
-    // No params needed for this static condition
-}
-
-// Search filter
-if (isset($_GET['search']) && $_GET['search'] != '') {
-    $searchTerm = '%' . $_GET['search'] . '%';
-    $whereClause[] = "(email LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR school LIKE ? OR city LIKE ?)";
-    $params = array_merge($params, [$searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm]);
-    $types .= "sssss";
-}
-
-// Date filter
-if (isset($_GET['joined']) && $_GET['joined'] != '') {
-    $today = date('Y-m-d');
-    switch ($_GET['joined']) {
-        case 'today':
-            $whereClause[] = "DATE(created_at) = ?";
-            $params[] = $today;
-            $types .= "s";
-            break;
-        case 'yesterday':
-            $yesterday = date('Y-m-d', strtotime('-1 day'));
-            $whereClause[] = "DATE(created_at) = ?";
-            $params[] = $yesterday;
-            $types .= "s";
-            break;
-        case 'this_week':
-            $weekStart = date('Y-m-d', strtotime('monday this week'));
-            $weekEnd = date('Y-m-d', strtotime('sunday this week'));
-            $whereClause[] = "DATE(created_at) BETWEEN ? AND ?";
-            $params[] = $weekStart;
-            $params[] = $weekEnd;
-            $types .= "ss";
-            break;
-        case 'this_month':
-            $monthStart = date('Y-m-01');
-            $monthEnd = date('Y-m-t');
-            $whereClause[] = "DATE(created_at) BETWEEN ? AND ?";
-            $params[] = $monthStart;
-            $params[] = $monthEnd;
-            $types .= "ss";
-            break;
-        case 'custom':
-            if (isset($_GET['start_date']) && isset($_GET['end_date'])) {
-                $startDate = $_GET['start_date'];
-                $endDate = $_GET['end_date'];
-                $whereClause[] = "DATE(created_at) BETWEEN ? AND ?";
-                $params[] = $startDate;
-                $params[] = $endDate;
-                $types .= "ss";
-            }
-            break;
-    }
-}
-
-// School filter
-if (isset($_GET['school']) && $_GET['school'] != '') {
-    $whereClause[] = "school LIKE ?";
-    $params[] = '%' . $_GET['school'] . '%';
-    $types .= "s";
-}
-
-// City filter
-if (isset($_GET['city']) && $_GET['city'] != '') {
-    $whereClause[] = "city LIKE ?";
-    $params[] = '%' . $_GET['city'] . '%';
-    $types .= "s";
-}
-
-
+$filters = buildUsersFilters($_GET);
+$whereClause = $filters['where'];
+$params = $filters['params'];
+$types = $filters['types'];
 
 // Apply where clause
 if (!empty($whereClause)) {
@@ -405,45 +318,50 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
         <?php include "include/footer.php" ?>
     </main>
 
-    <!-- Include your JavaScript files here -->
-    <!-- jQuery library js -->
-    <script src="assets/js/lib/jquery-3.7.1.min.js"></script>
-    <!-- Bootstrap js -->
-    <script src="assets/js/lib/bootstrap.bundle.min.js"></script>
-    <!-- Apex Chart js -->
-    <script src="assets/js/lib/apexcharts.min.js"></script>
-    <!-- Data Table js -->
-    <script src="assets/js/lib/dataTables.min.js"></script>
-    <!-- Iconify Font js -->
-    <script src="assets/js/lib/iconify-icon.min.js"></script>
-    <!-- jQuery UI js -->
-    <script src="assets/js/lib/jquery-ui.min.js"></script>
-    <!-- Vector Map js -->
-    <script src="assets/js/lib/jquery-jvectormap-2.0.5.min.js"></script>
-    <script src="assets/js/lib/jquery-jvectormap-world-mill-en.js"></script>
-    <!-- Popup js -->
-    <script src="assets/js/lib/magnifc-popup.min.js"></script>
-    <!-- Slick Slider js -->
-    <script src="assets/js/lib/slick.min.js"></script>
-    <!-- main js -->
-    <script src="assets/js/app.js"></script>
-
-    <!-- Excel export library -->
+    <?php include "include/script.php" ?>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
 
     <script>
-        // Toggle filters on mobile
-        document.getElementById('showFilters').addEventListener('click', function() {
-            var filterContainer = document.getElementById('filterContainer');
-            filterContainer.classList.toggle('d-none');
-            filterContainer.classList.toggle('d-block');
-        });
+        document.getElementById('downloadExcel').addEventListener('click', function () {
+            const btn = this;
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span>Exporting...</span>';
 
-        // Excel download functionality
-        document.getElementById('downloadExcel').addEventListener('click', function() {
-            var table = document.querySelector('table');
-            var wb = XLSX.utils.table_to_book(table, {sheet: "Users"});
-            XLSX.writeFile(wb, 'users.xlsx');
+            const params = new URLSearchParams(window.location.search);
+            params.delete('page');
+            params.delete('per_page');
+
+            fetch('export/users.php?' + params.toString())
+                .then(function (response) {
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (data.status !== 'success') {
+                        throw new Error(data.message || 'Export failed.');
+                    }
+
+                    if (!data.users || data.users.length === 0) {
+                        Swal.fire('No data', 'No users found for the current filters.', 'info');
+                        return;
+                    }
+
+                    const ws = XLSX.utils.json_to_sheet(data.users);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, 'Users');
+                    const filename = 'users_export_' + new Date().toISOString().slice(0, 10) + '.xlsx';
+                    XLSX.writeFile(wb, filename);
+
+                    Swal.fire('Exported!', data.total + ' user(s) exported successfully.', 'success');
+                })
+                .catch(function (error) {
+                    console.error('Export error:', error);
+                    Swal.fire('Error', error.message || 'An error occurred while exporting users.', 'error');
+                })
+                .finally(function () {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                });
         });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
