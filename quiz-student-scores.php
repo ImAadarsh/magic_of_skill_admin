@@ -10,7 +10,7 @@ if (!$connect) {
 $fuzzyGroups = buildFuzzySchoolGroups($connect);
 $filters = buildQuizStudentScoreFilters($_GET, $fuzzyGroups);
 
-$selectedSchool = !empty($_GET['school']) ? $_GET['school'] : '';
+$selectedSchools = parseSelectedSchoolKeys($_GET);
 $startDate = $filters['start_date'];
 $endDate = $filters['end_date'];
 $selectedGrade = !empty($_GET['grade']) ? $_GET['grade'] : '';
@@ -31,7 +31,7 @@ $summary = [
     'cumulative_score' => 0,
 ];
 
-$canQuery = $selectedSchool !== '' && $startDate && $endDate;
+$canQuery = !empty($selectedSchools) && $startDate && $endDate;
 
 if ($canQuery) {
     $baseSql = "FROM user_quiz_attempts uqa
@@ -118,9 +118,15 @@ if ($canQuery) {
     }
 }
 
-$schoolDisplayName = $selectedSchool && isset($fuzzyGroups[$selectedSchool])
-    ? $fuzzyGroups[$selectedSchool]['display']
-    : '';
+$schoolDisplayNames = [];
+foreach ($selectedSchools as $schoolKey) {
+    if (isset($fuzzyGroups[$schoolKey])) {
+        $schoolDisplayNames[] = $fuzzyGroups[$schoolKey]['display'];
+    }
+}
+$schoolSummaryLabel = count($schoolDisplayNames) === 1
+    ? $schoolDisplayNames[0]
+    : count($schoolDisplayNames) . ' schools selected';
 ?>
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
@@ -129,9 +135,70 @@ $schoolDisplayName = $selectedSchool && isset($fuzzyGroups[$selectedSchool])
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Cumulative Scores - Magic Of Skills Dashboard</title>
     <?php include 'include/meta.php' ?>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <style>
         .table-responsive { overflow-x: auto; }
         .table td iconify-icon { pointer-events: none; }
+        .mos-school-select-wrap {
+            min-width: 240px;
+            max-width: 320px;
+        }
+        .select2-container { width: 100% !important; }
+        .select2-container--default .select2-selection--multiple {
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            min-height: 38px;
+            padding: 2px 6px;
+            font-size: 13px;
+        }
+        .select2-container--default.select2-container--focus .select2-selection--multiple {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice {
+            background-color: #0d6efd;
+            border: none;
+            color: #fff;
+            border-radius: 4px;
+            padding: 1px 6px;
+            margin-top: 2px;
+            font-size: 12px;
+        }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+            color: #fff;
+            margin-right: 4px;
+        }
+        .select2-multiple-checkboxes .select2-results__option {
+            position: relative;
+            padding-left: 30px !important;
+            font-size: 13px;
+        }
+        .select2-multiple-checkboxes .select2-results__option::before {
+            content: "";
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 14px;
+            height: 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 3px;
+            background-color: #fff;
+        }
+        .select2-multiple-checkboxes .select2-results__option--selected::before {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+        .select2-multiple-checkboxes .select2-results__option--selected::after {
+            content: "✓";
+            position: absolute;
+            left: 11px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #fff;
+            font-size: 10px;
+            font-weight: bold;
+        }
         .summary-card {
             border: 1px solid var(--neutral-300, #e5e7eb);
             border-radius: 12px;
@@ -187,14 +254,15 @@ $schoolDisplayName = $selectedSchool && isset($fuzzyGroups[$selectedSchool])
                         </button>
                         <div class="mos-filter-body d-lg-block" id="scoresFilterBody">
                             <form method="GET" class="mos-filter-row">
-                                <select name="school" class="form-select form-select-sm" required>
-                                    <option value="">Select School</option>
-                                    <?php foreach ($fuzzyGroups as $key => $group): ?>
-                                        <option value="<?php echo htmlspecialchars($key); ?>" <?php echo $selectedSchool === $key ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($group['display']); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
+                                <div class="mos-school-select-wrap">
+                                    <select name="school[]" id="school" class="form-select form-select-sm" multiple="multiple">
+                                        <?php foreach ($fuzzyGroups as $key => $group): ?>
+                                            <option value="<?php echo htmlspecialchars($key); ?>" <?php echo in_array($key, $selectedSchools, true) ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($group['display']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
                                 <input type="date" name="start_date" value="<?php echo htmlspecialchars($startDate ?? ''); ?>" required>
                                 <input type="date" name="end_date" value="<?php echo htmlspecialchars($endDate ?? ''); ?>" required>
                                 <select name="grade" class="form-select form-select-sm">
@@ -233,7 +301,12 @@ $schoolDisplayName = $selectedSchool && isset($fuzzyGroups[$selectedSchool])
                 <?php if ($canQuery): ?>
                     <div class="card-body border-bottom px-24 py-16">
                         <div class="mb-12">
-                            <h6 class="fw-semibold mb-4"><?php echo htmlspecialchars($schoolDisplayName); ?></h6>
+                            <h6 class="fw-semibold mb-4"><?php echo htmlspecialchars($schoolSummaryLabel); ?></h6>
+                            <?php if (count($schoolDisplayNames) > 1): ?>
+                                <p class="mb-8 text-secondary-light text-sm">
+                                    <?php echo htmlspecialchars(implode(', ', $schoolDisplayNames)); ?>
+                                </p>
+                            <?php endif; ?>
                             <p class="mb-0 text-secondary-light text-sm">
                                 Consolidated quiz results from
                                 <strong><?php echo date('d M Y', strtotime($startDate)); ?></strong>
@@ -282,8 +355,8 @@ $schoolDisplayName = $selectedSchool && isset($fuzzyGroups[$selectedSchool])
                     <?php if (!$canQuery): ?>
                         <div class="empty-state">
                             <iconify-icon icon="heroicons:chart-bar-square" style="font-size:48px;color:#9ca3af"></iconify-icon>
-                            <h6 class="mt-16 mb-8 fw-semibold">Select a school and date range</h6>
-                            <p class="mb-0">Choose a school and date range above to view each student's total cumulative quiz score for that period.</p>
+                            <h6 class="mt-16 mb-8 fw-semibold">Select one or more schools and a date range</h6>
+                            <p class="mb-0">Choose schools from the dropdown and pick a date range to view each student's total cumulative quiz score for that period.</p>
                         </div>
                     <?php elseif (empty($students)): ?>
                         <div class="empty-state">
@@ -297,6 +370,7 @@ $schoolDisplayName = $selectedSchool && isset($fuzzyGroups[$selectedSchool])
                                     <tr>
                                         <th scope="col">Rank</th>
                                         <th scope="col">Student</th>
+                                        <th scope="col">School</th>
                                         <th scope="col">Grade</th>
                                         <th scope="col">City</th>
                                         <th scope="col">Quizzes Played</th>
@@ -318,6 +392,7 @@ $schoolDisplayName = $selectedSchool && isset($fuzzyGroups[$selectedSchool])
                                                     <small class="text-muted"><?php echo htmlspecialchars($student['email']); ?></small>
                                                 </div>
                                             </td>
+                                            <td><?php echo htmlspecialchars($student['school']); ?></td>
                                             <td><?php echo htmlspecialchars($student['grade'] ?? ''); ?></td>
                                             <td><?php echo htmlspecialchars($student['city'] ?? ''); ?></td>
                                             <td><?php echo (int) $student['quizzes_played']; ?></td>
@@ -370,8 +445,35 @@ $schoolDisplayName = $selectedSchool && isset($fuzzyGroups[$selectedSchool])
     </main>
 
     <?php include 'include/script.php' ?>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
     <script>
+        $(document).ready(function () {
+            $('#school').select2({
+                placeholder: 'Select schools',
+                allowClear: true,
+                closeOnSelect: false,
+                dropdownCssClass: 'select2-multiple-checkboxes'
+            });
+
+            $('form.mos-filter-row').on('submit', function (e) {
+                const selectedSchools = $('#school').val();
+                const startDate = $('input[name="start_date"]').val();
+                const endDate = $('input[name="end_date"]').val();
+
+                if (!selectedSchools || selectedSchools.length === 0) {
+                    e.preventDefault();
+                    Swal.fire('School required', 'Please select at least one school.', 'warning');
+                    return;
+                }
+
+                if (!startDate || !endDate) {
+                    e.preventDefault();
+                    Swal.fire('Date range required', 'Please select both start and end dates.', 'warning');
+                }
+            });
+        });
+
         document.getElementById('downloadExcel').addEventListener('click', function () {
             const btn = this;
             if (btn.disabled) {

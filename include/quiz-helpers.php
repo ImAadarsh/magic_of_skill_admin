@@ -54,6 +54,34 @@ if (!function_exists('buildFuzzySchoolGroups')) {
     }
 }
 
+if (!function_exists('parseSelectedSchoolKeys')) {
+    function parseSelectedSchoolKeys(array $get): array
+    {
+        if (empty($get['school'])) {
+            return [];
+        }
+
+        $schools = is_array($get['school']) ? $get['school'] : [$get['school']];
+        return array_values(array_filter(array_map('trim', $schools)));
+    }
+}
+
+if (!function_exists('getSchoolNamesForSelectedKeys')) {
+    function getSchoolNamesForSelectedKeys(array $selectedKeys, array $fuzzyGroups): array
+    {
+        $originalNamesToMatch = [];
+
+        foreach ($selectedKeys as $key) {
+            $originalNamesToMatch = array_merge(
+                $originalNamesToMatch,
+                getSchoolNamesForFuzzyKey($key, $fuzzyGroups)
+            );
+        }
+
+        return array_values(array_unique($originalNamesToMatch));
+    }
+}
+
 if (!function_exists('getSchoolNamesForFuzzyKey')) {
     function getSchoolNamesForFuzzyKey(string $fuzzyKey, array $fuzzyGroups): array
     {
@@ -86,7 +114,9 @@ if (!function_exists('buildQuizStudentScoreFilters')) {
         }
 
         if (!empty($get['school'])) {
-            $schoolNames = getSchoolNamesForFuzzyKey($get['school'], $fuzzyGroups);
+            $selectedSchools = parseSelectedSchoolKeys($get);
+            $schoolNames = getSchoolNamesForSelectedKeys($selectedSchools, $fuzzyGroups);
+
             if (!empty($schoolNames)) {
                 $placeholders = implode(',', array_fill(0, count($schoolNames), '?'));
                 $whereClause[] = "TRIM(LOWER(u.school)) IN ($placeholders)";

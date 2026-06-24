@@ -13,8 +13,10 @@ if (!$connect) {
 $fuzzyGroups = buildFuzzySchoolGroups($connect);
 $filters = buildQuizStudentScoreFilters($_GET, $fuzzyGroups);
 
-if (empty($_GET['school']) || empty($filters['start_date']) || empty($filters['end_date'])) {
-    echo json_encode(['status' => 'error', 'message' => 'School and date range are required for export.']);
+$selectedSchools = parseSelectedSchoolKeys($_GET);
+
+if (empty($selectedSchools) || empty($filters['start_date']) || empty($filters['end_date'])) {
+    echo json_encode(['status' => 'error', 'message' => 'At least one school and a date range are required for export.']);
     exit;
 }
 
